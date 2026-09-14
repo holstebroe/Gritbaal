@@ -1,10 +1,10 @@
-#ifndef SYREBAS_GRAPHICS_HPP
-#define SYREBAS_GRAPHICS_HPP
+#ifndef GRITBAAL_GRAPHICS_HPP
+#define GRITBAAL_GRAPHICS_HPP
 
 #include <cstdint>
 #include "Font.hpp"
 
-namespace syrebas {
+namespace gritbaal {
 
 class Graphics {
 public:
@@ -35,6 +35,6 @@ private:
     int bufferHeight_{0};
 };
 
-} // namespace syrebas
+} // namespace gritbaal
 
-#endif // SYREBAS_GRAPHICS_HPP
+#endif // GRITBAAL_GRAPHICS_HPP

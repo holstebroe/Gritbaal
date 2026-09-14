@@ -1,9 +1,9 @@
-#ifndef SYREBAS_OSCILLATOR_HPP
-#define SYREBAS_OSCILLATOR_HPP
+#ifndef GRITBAAL_OSCILLATOR_HPP
+#define GRITBAAL_OSCILLATOR_HPP
 
 #include <cmath>
 
-namespace syrebas {
+namespace gritbaal {
 
 enum class Waveform {
     Saw = 0,
@@ -50,6 +50,6 @@ private:
     }
 };
 
-} // namespace syrebas
+} // namespace gritbaal
 
-#endif // SYREBAS_OSCILLATOR_HPP
+#endif // GRITBAAL_OSCILLATOR_HPP

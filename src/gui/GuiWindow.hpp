@@ -1,5 +1,5 @@
-#ifndef SYREBAS_GUI_WINDOW_HPP
-#define SYREBAS_GUI_WINDOW_HPP
+#ifndef GRITBAAL_GUI_WINDOW_HPP
+#define GRITBAAL_GUI_WINDOW_HPP
 
 #include <clap/clap.h>
 #include <clap/ext/gui.h>
@@ -11,11 +11,11 @@
 #include "Font.hpp"
 #include "IControlRenderer.hpp"
 
-namespace syrebas {
+namespace gritbaal {
 
-class SyrebasClap;
+class GritbaalClap;
 
-extern const clap_plugin_gui_t g_syrebasGuiExtension;
+extern const clap_plugin_gui_t g_gritbaalGuiExtension;
 
 enum class ControlType {
     Knob,
@@ -34,7 +34,7 @@ struct Control {
 
 class GuiWindow {
 public:
-    explicit GuiWindow(SyrebasClap* plugin);
+    explicit GuiWindow(GritbaalClap* plugin);
     ~GuiWindow();
 
     bool setParent(const clap_window_t* window);
@@ -63,7 +63,7 @@ public:
     void handleMouseUp();
 
 private:
-    SyrebasClap* plugin_{nullptr};
+    GritbaalClap* plugin_{nullptr};
     uint32_t width_{710};
     uint32_t height_{180};
 
@@ -107,9 +107,9 @@ private:
 
     void initControls();
     void updateKnobValuesFromPlugin();
-    void drawSyrebasTitle(Graphics& g, int x, int y);
+    void drawGritbaalTitle(Graphics& g, int x, int y);
 };
 
-} // namespace syrebas
+} // namespace gritbaal
 
-#endif // SYREBAS_GUI_WINDOW_HPP
+#endif // GRITBAAL_GUI_WINDOW_HPP

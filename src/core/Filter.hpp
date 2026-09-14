@@ -1,10 +1,10 @@
-#ifndef SYREBAS_FILTER_HPP
-#define SYREBAS_FILTER_HPP
+#ifndef GRITBAAL_FILTER_HPP
+#define GRITBAAL_FILTER_HPP
 
 #include <cmath>
 #include <array>
 
-namespace syrebas {
+namespace gritbaal {
 
 // Single TPT 1-pole Low-Pass Stage with capacitor memory state s[n]
 class TPTOnePole {
@@ -125,6 +125,6 @@ private:
     float processOversampledSample(float input, float cutoffHz, float resonance);
 };
 
-} // namespace syrebas
+} // namespace gritbaal
 
-#endif // SYREBAS_FILTER_HPP
+#endif // GRITBAAL_FILTER_HPP

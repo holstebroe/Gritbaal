@@ -10,7 +10,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace syrebas {
+namespace gritbaal {
 
 void TB303ControlRenderer::drawKnob(Graphics& g, const Control& knob, const Font& font) {
     // Label centered above knob
@@ -102,4 +102,4 @@ void TB303ControlRenderer::drawToggleSwitch(Graphics& g, const Control& ctrl, co
     g.drawLine(ctrl.x - 5, handleY + 7, ctrl.x + 5, handleY + 7, 0xFF101010, 1);
 }
 
-} // namespace syrebas
+} // namespace gritbaal

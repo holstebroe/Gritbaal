@@ -1,7 +1,7 @@
 #include "GuiWindow.hpp"
 #include "Graphics.hpp"
 #include "ControlRenderer.hpp"
-#include "clap/SyrebasClap.hpp"
+#include "clap/GritbaalClap.hpp"
 #include <cmath>
 #include <cstring>
 #include <algorithm>
@@ -19,9 +19,9 @@
 #include <windows.h>
 #endif
 
-namespace syrebas {
+namespace gritbaal {
 
-GuiWindow::GuiWindow(SyrebasClap* plugin)
+GuiWindow::GuiWindow(GritbaalClap* plugin)
     : plugin_(plugin), controlRenderer_(std::make_unique<TB303ControlRenderer>()) {
     pixelBuffer_.resize(width_ * height_, 0xFFDBDFE1);
     initControls();
@@ -60,7 +60,7 @@ void GuiWindow::updateKnobValuesFromPlugin() {
     }
 }
 
-void GuiWindow::drawSyrebasTitle(Graphics& g, int x, int y) {
+void GuiWindow::drawGritbaalTitle(Graphics& g, int x, int y) {
     // S
     g.drawRect(x, y, 22, 6, 0xFF121212);
     g.drawRect(x, y, 6, 16, 0xFF121212);
@@ -148,8 +148,8 @@ void GuiWindow::renderFrame() {
         }
     }
 
-    // 3. Draw Title Logo "Syrebas"
-    drawSyrebasTitle(g, 545, 65);
+    // 3. Draw Title Logo "Gritbaal"
+    drawGritbaalTitle(g, 545, 65);
 
     // 4. Downsample hiResBuffer_ (2x2 box filter) into pixelBuffer_
     pixelBuffer_.resize(width_ * height_);
@@ -378,10 +378,10 @@ void GuiWindow::drawX11Frame() {
 #endif
 
 #if defined(_WIN32)
-static const wchar_t* kSyrebasClassName = L"SyrebasWindowCLASS";
+static const wchar_t* kGritbaalClassName = L"GritbaalWindowCLASS";
 static bool g_win32ClassRegistered = false;
 
-static LRESULT CALLBACK SyrebasWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+static LRESULT CALLBACK GritbaalWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     GuiWindow* gui = reinterpret_cast<GuiWindow*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
 
     switch (msg) {
@@ -448,9 +448,9 @@ void GuiWindow::initWin32Window() {
 
     if (!g_win32ClassRegistered) {
         WNDCLASSW wc = {};
-        wc.lpfnWndProc = SyrebasWndProc;
+        wc.lpfnWndProc = GritbaalWndProc;
         wc.hInstance = hInstance;
-        wc.lpszClassName = kSyrebasClassName;
+        wc.lpszClassName = kGritbaalClassName;
         wc.hCursor = LoadCursor(NULL, IDC_ARROW);
         RegisterClassW(&wc);
         g_win32ClassRegistered = true;
@@ -459,7 +459,7 @@ void GuiWindow::initWin32Window() {
     HWND parent = static_cast<HWND>(parentHwnd_);
 
     hwnd_ = CreateWindowExW(
-        0, kSyrebasClassName, L"Syrebas 303",
+        0, kGritbaalClassName, L"Gritbaal 303",
         WS_CHILD | WS_VISIBLE,
         0, 0, width_, height_,
         parent, NULL, hInstance, this
@@ -501,7 +501,7 @@ void GuiWindow::drawCocoaFrame() {}
 #endif
 
 // CLAP GUI Extension Callbacks
-const clap_plugin_gui_t g_syrebasGuiExtension = {
+const clap_plugin_gui_t g_gritbaalGuiExtension = {
     [](const clap_plugin_t* plugin, const char* api, bool is_floating) -> bool {
 #if defined(__linux__) && !defined(__APPLE__)
         return std::strcmp(api, CLAP_WINDOW_API_X11) == 0 && !is_floating;
@@ -525,12 +525,12 @@ const clap_plugin_gui_t g_syrebasGuiExtension = {
         return true;
     },
     [](const clap_plugin_t* plugin, const char* api, bool is_floating) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<GritbaalClap*>(plugin->plugin_data);
         self->createGuiWindow();
         return true;
     },
     [](const clap_plugin_t* plugin) {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<GritbaalClap*>(plugin->plugin_data);
         self->destroyGuiWindow();
     },
     [](const clap_plugin_t* plugin, double scale) -> bool {
@@ -553,14 +553,14 @@ const clap_plugin_gui_t g_syrebasGuiExtension = {
         return true;
     },
     [](const clap_plugin_t* plugin, uint32_t width, uint32_t height) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<GritbaalClap*>(plugin->plugin_data);
         if (self->getGuiWindow()) {
             return self->getGuiWindow()->setSize(width, height);
         }
         return true;
     },
     [](const clap_plugin_t* plugin, const clap_window_t* window) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<GritbaalClap*>(plugin->plugin_data);
         if (!self->getGuiWindow()) {
             self->createGuiWindow();
         }
@@ -571,14 +571,14 @@ const clap_plugin_gui_t g_syrebasGuiExtension = {
     },
     [](const clap_plugin_t* plugin, const char* title) {},
     [](const clap_plugin_t* plugin) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<GritbaalClap*>(plugin->plugin_data);
         if (self->getGuiWindow()) {
             return self->getGuiWindow()->show();
         }
         return false;
     },
     [](const clap_plugin_t* plugin) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<GritbaalClap*>(plugin->plugin_data);
         if (self->getGuiWindow()) {
             return self->getGuiWindow()->hide();
         }
@@ -586,4 +586,4 @@ const clap_plugin_gui_t g_syrebasGuiExtension = {
     }
 };
 
-} // namespace syrebas
+} // namespace gritbaal

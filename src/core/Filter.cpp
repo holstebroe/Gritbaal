@@ -2,7 +2,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace syrebas {
+namespace gritbaal {
 
 static const float FIR_COEFFS[16] = {
     -0.0031f, 0.0f, 0.0156f, 0.0f, -0.0528f, 0.0f, 0.3134f, 0.5f,
@@ -254,4 +254,4 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
     return finalOut;
 }
 
-} // namespace syrebas
+} // namespace gritbaal

@@ -1,13 +1,13 @@
-#include "SyrebasClap.hpp"
+#include "GritbaalClap.hpp"
 #include "gui/GuiWindow.hpp"
 #include <cstring>
 #include <cstdio>
 #include <algorithm>
 
-namespace syrebas {
+namespace gritbaal {
 
 // Forward declarations of GUI extension functions
-extern const clap_plugin_gui_t g_syrebasGuiExtension;
+extern const clap_plugin_gui_t g_gritbaalGuiExtension;
 
 static const clap_plugin_note_ports_t g_notePortsExtension = {
     // count
@@ -46,32 +46,32 @@ static const clap_plugin_audio_ports_t g_audioPortsExtension = {
 static const clap_plugin_params_t g_paramsExtension = {
     // count
     [](const clap_plugin_t* plugin) -> uint32_t {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<GritbaalClap*>(plugin->plugin_data);
         return self->paramsCount();
     },
     // get_info
     [](const clap_plugin_t* plugin, uint32_t param_index, clap_param_info_t* param_info) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<GritbaalClap*>(plugin->plugin_data);
         return self->paramsInfo(param_index, param_info);
     },
     // get_value
     [](const clap_plugin_t* plugin, clap_id param_id, double* out_value) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<GritbaalClap*>(plugin->plugin_data);
         return self->paramsValue(param_id, out_value);
     },
     // value_to_text
     [](const clap_plugin_t* plugin, clap_id param_id, double value, char* out_buffer, uint32_t out_buffer_capacity) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<GritbaalClap*>(plugin->plugin_data);
         return self->paramsValueToText(param_id, value, out_buffer, out_buffer_capacity);
     },
     // text_to_value
     [](const clap_plugin_t* plugin, clap_id param_id, const char* param_value_text, double* out_value) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<GritbaalClap*>(plugin->plugin_data);
         return self->paramsTextToValue(param_id, param_value_text, out_value);
     },
     // flush
     [](const clap_plugin_t* plugin, const clap_input_events_t* in, const clap_output_events_t* out) {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<GritbaalClap*>(plugin->plugin_data);
         self->paramsFlush(in, out);
     }
 };
@@ -79,48 +79,48 @@ static const clap_plugin_params_t g_paramsExtension = {
 static const clap_plugin_state_t g_stateExtension = {
     // save
     [](const clap_plugin_t* plugin, const clap_ostream_t* stream) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<GritbaalClap*>(plugin->plugin_data);
         return self->stateSave(stream);
     },
     // load
     [](const clap_plugin_t* plugin, const clap_istream_t* stream) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<GritbaalClap*>(plugin->plugin_data);
         return self->stateLoad(stream);
     }
 };
 
-SyrebasClap::SyrebasClap(const clap_host_t* host) : host_(host) {
+GritbaalClap::GritbaalClap(const clap_host_t* host) : host_(host) {
     clapPlugin_.desc = nullptr;
     clapPlugin_.plugin_data = this;
     clapPlugin_.init = [](const clap_plugin_t* plugin) -> bool {
-        return static_cast<SyrebasClap*>(plugin->plugin_data)->init();
+        return static_cast<GritbaalClap*>(plugin->plugin_data)->init();
     };
     clapPlugin_.destroy = [](const clap_plugin_t* plugin) {
-        static_cast<SyrebasClap*>(plugin->plugin_data)->destroy();
+        static_cast<GritbaalClap*>(plugin->plugin_data)->destroy();
     };
     clapPlugin_.activate = [](const clap_plugin_t* plugin, double sample_rate, uint32_t min_frames, uint32_t max_frames) -> bool {
-        return static_cast<SyrebasClap*>(plugin->plugin_data)->activate(sample_rate, min_frames, max_frames);
+        return static_cast<GritbaalClap*>(plugin->plugin_data)->activate(sample_rate, min_frames, max_frames);
     };
     clapPlugin_.deactivate = [](const clap_plugin_t* plugin) {
-        static_cast<SyrebasClap*>(plugin->plugin_data)->deactivate();
+        static_cast<GritbaalClap*>(plugin->plugin_data)->deactivate();
     };
     clapPlugin_.start_processing = [](const clap_plugin_t* plugin) -> bool {
-        return static_cast<SyrebasClap*>(plugin->plugin_data)->startProcessing();
+        return static_cast<GritbaalClap*>(plugin->plugin_data)->startProcessing();
     };
     clapPlugin_.stop_processing = [](const clap_plugin_t* plugin) {
-        static_cast<SyrebasClap*>(plugin->plugin_data)->stopProcessing();
+        static_cast<GritbaalClap*>(plugin->plugin_data)->stopProcessing();
     };
     clapPlugin_.reset = [](const clap_plugin_t* plugin) {
-        static_cast<SyrebasClap*>(plugin->plugin_data)->reset();
+        static_cast<GritbaalClap*>(plugin->plugin_data)->reset();
     };
     clapPlugin_.process = [](const clap_plugin_t* plugin, const clap_process_t* process) -> clap_process_status {
-        return static_cast<SyrebasClap*>(plugin->plugin_data)->process(process);
+        return static_cast<GritbaalClap*>(plugin->plugin_data)->process(process);
     };
     clapPlugin_.get_extension = [](const clap_plugin_t* plugin, const char* id) -> const void* {
-        return static_cast<SyrebasClap*>(plugin->plugin_data)->getExtension(id);
+        return static_cast<GritbaalClap*>(plugin->plugin_data)->getExtension(id);
     };
     clapPlugin_.on_main_thread = [](const clap_plugin_t* plugin) {
-        static_cast<SyrebasClap*>(plugin->plugin_data)->onMainThread();
+        static_cast<GritbaalClap*>(plugin->plugin_data)->onMainThread();
     };
 
     // Initialize default parameter values
@@ -136,44 +136,44 @@ SyrebasClap::SyrebasClap(const clap_host_t* host) : host_(host) {
     syncParamsToEngine();
 }
 
-bool SyrebasClap::init() {
+bool GritbaalClap::init() {
     return true;
 }
 
-void SyrebasClap::destroy() {
+void GritbaalClap::destroy() {
     destroyGuiWindow();
     delete this;
 }
 
-void SyrebasClap::createGuiWindow() {
+void GritbaalClap::createGuiWindow() {
     if (!guiWindow_) {
         guiWindow_ = std::make_unique<GuiWindow>(this);
     }
 }
 
-void SyrebasClap::destroyGuiWindow() {
+void GritbaalClap::destroyGuiWindow() {
     guiWindow_.reset();
 }
 
-bool SyrebasClap::activate(double sampleRate, uint32_t minFrames, uint32_t maxFrames) {
+bool GritbaalClap::activate(double sampleRate, uint32_t minFrames, uint32_t maxFrames) {
     engine_.setSampleRate(sampleRate);
     engine_.reset();
     return true;
 }
 
-void SyrebasClap::deactivate() {}
+void GritbaalClap::deactivate() {}
 
-bool SyrebasClap::startProcessing() {
+bool GritbaalClap::startProcessing() {
     return true;
 }
 
-void SyrebasClap::stopProcessing() {}
+void GritbaalClap::stopProcessing() {}
 
-void SyrebasClap::reset() {
+void GritbaalClap::reset() {
     engine_.reset();
 }
 
-void SyrebasClap::syncParamsToEngine() {
+void GritbaalClap::syncParamsToEngine() {
     auto& params = engine_.getParams();
     params.cutoff = static_cast<float>(paramValues_[PARAM_CUTOFF]);
     params.resonance = static_cast<float>(paramValues_[PARAM_RESONANCE]);
@@ -185,7 +185,7 @@ void SyrebasClap::syncParamsToEngine() {
     params.mode = (paramValues_[PARAM_MODE] >= 0.5) ? EmulationMode::Simplified : EmulationMode::Accurate;
 }
 
-void SyrebasClap::handleEvent(const clap_event_header_t* header) {
+void GritbaalClap::handleEvent(const clap_event_header_t* header) {
     if (header->space_id != CLAP_CORE_EVENT_SPACE_ID) return;
 
     if (header->type == CLAP_EVENT_NOTE_ON) {
@@ -239,7 +239,7 @@ void SyrebasClap::handleEvent(const clap_event_header_t* header) {
     }
 }
 
-clap_process_status SyrebasClap::process(const clap_process_t* process) {
+clap_process_status GritbaalClap::process(const clap_process_t* process) {
     const uint32_t numFrames = process->frames_count;
     const uint32_t numEvents = process->in_events ? process->in_events->size(process->in_events) : 0;
     uint32_t eventIndex = 0;
@@ -282,22 +282,22 @@ clap_process_status SyrebasClap::process(const clap_process_t* process) {
     return CLAP_PROCESS_CONTINUE;
 }
 
-const void* SyrebasClap::getExtension(const char* id) {
+const void* GritbaalClap::getExtension(const char* id) {
     if (std::strcmp(id, CLAP_EXT_NOTE_PORTS) == 0) return &g_notePortsExtension;
     if (std::strcmp(id, CLAP_EXT_AUDIO_PORTS) == 0) return &g_audioPortsExtension;
     if (std::strcmp(id, CLAP_EXT_PARAMS) == 0) return &g_paramsExtension;
     if (std::strcmp(id, CLAP_EXT_STATE) == 0) return &g_stateExtension;
-    if (std::strcmp(id, CLAP_EXT_GUI) == 0) return &g_syrebasGuiExtension;
+    if (std::strcmp(id, CLAP_EXT_GUI) == 0) return &g_gritbaalGuiExtension;
     return nullptr;
 }
 
-void SyrebasClap::onMainThread() {}
+void GritbaalClap::onMainThread() {}
 
-uint32_t SyrebasClap::paramsCount() const {
+uint32_t GritbaalClap::paramsCount() const {
     return PARAM_COUNT;
 }
 
-bool SyrebasClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) const {
+bool GritbaalClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) const {
     if (paramIndex >= PARAM_COUNT) return false;
 
     std::memset(paramInfo, 0, sizeof(*paramInfo));
@@ -369,13 +369,13 @@ bool SyrebasClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) 
     return true;
 }
 
-bool SyrebasClap::paramsValue(clap_id paramId, double* outValue) {
+bool GritbaalClap::paramsValue(clap_id paramId, double* outValue) {
     if (paramId >= PARAM_COUNT || !outValue) return false;
     *outValue = paramValues_[paramId];
     return true;
 }
 
-void SyrebasClap::requestHostFlush() {
+void GritbaalClap::requestHostFlush() {
     if (host_) {
         const auto* host_params = static_cast<const clap_host_params_t*>(
             host_->get_extension(host_, CLAP_EXT_PARAMS));
@@ -387,7 +387,7 @@ void SyrebasClap::requestHostFlush() {
     }
 }
 
-void SyrebasClap::onBeginEditFromGui(clap_id paramId) {
+void GritbaalClap::onBeginEditFromGui(clap_id paramId) {
     if (paramId >= PARAM_COUNT) return;
     {
         std::lock_guard<std::mutex> lock(outEventQueueMutex_);
@@ -396,7 +396,7 @@ void SyrebasClap::onBeginEditFromGui(clap_id paramId) {
     requestHostFlush();
 }
 
-void SyrebasClap::onParamValueFromGui(clap_id paramId, double value) {
+void GritbaalClap::onParamValueFromGui(clap_id paramId, double value) {
     if (paramId >= PARAM_COUNT) return;
     paramValues_[paramId] = value;
     syncParamsToEngine();
@@ -407,7 +407,7 @@ void SyrebasClap::onParamValueFromGui(clap_id paramId, double value) {
     requestHostFlush();
 }
 
-void SyrebasClap::onEndEditFromGui(clap_id paramId) {
+void GritbaalClap::onEndEditFromGui(clap_id paramId) {
     if (paramId >= PARAM_COUNT) return;
     {
         std::lock_guard<std::mutex> lock(outEventQueueMutex_);
@@ -416,11 +416,11 @@ void SyrebasClap::onEndEditFromGui(clap_id paramId) {
     requestHostFlush();
 }
 
-void SyrebasClap::setParamValueFromGui(clap_id paramId, double value) {
+void GritbaalClap::setParamValueFromGui(clap_id paramId, double value) {
     onParamValueFromGui(paramId, value);
 }
 
-void SyrebasClap::pushPendingOutputEvents(const clap_output_events_t* out) {
+void GritbaalClap::pushPendingOutputEvents(const clap_output_events_t* out) {
     if (!out) return;
     std::vector<GuiParamEvent> pending;
     {
@@ -457,7 +457,7 @@ void SyrebasClap::pushPendingOutputEvents(const clap_output_events_t* out) {
     }
 }
 
-bool SyrebasClap::paramsValueToText(clap_id paramId, double value, char* outBuffer, uint32_t outBufferCapacity) {
+bool GritbaalClap::paramsValueToText(clap_id paramId, double value, char* outBuffer, uint32_t outBufferCapacity) {
     if (paramId >= PARAM_COUNT || !outBuffer || outBufferCapacity == 0) return false;
 
     if (paramId == PARAM_CUTOFF) {
@@ -474,7 +474,7 @@ bool SyrebasClap::paramsValueToText(clap_id paramId, double value, char* outBuff
     return true;
 }
 
-bool SyrebasClap::paramsTextToValue(clap_id paramId, const char* paramValueText, double* outValue) {
+bool GritbaalClap::paramsTextToValue(clap_id paramId, const char* paramValueText, double* outValue) {
     if (paramId >= PARAM_COUNT || !paramValueText || !outValue) return false;
     if (paramId == PARAM_WAVEFORM) {
         if (std::strstr(paramValueText, "Square") || std::strstr(paramValueText, "square")) {
@@ -503,7 +503,7 @@ bool SyrebasClap::paramsTextToValue(clap_id paramId, const char* paramValueText,
     return true;
 }
 
-void SyrebasClap::paramsFlush(const clap_input_events_t* in, const clap_output_events_t* out) {
+void GritbaalClap::paramsFlush(const clap_input_events_t* in, const clap_output_events_t* out) {
     if (in) {
         uint32_t size = in->size(in);
         for (uint32_t i = 0; i < size; ++i) {
@@ -514,13 +514,13 @@ void SyrebasClap::paramsFlush(const clap_input_events_t* in, const clap_output_e
     pushPendingOutputEvents(out);
 }
 
-bool SyrebasClap::stateSave(const clap_ostream_t* stream) {
+bool GritbaalClap::stateSave(const clap_ostream_t* stream) {
     if (!stream) return false;
     int64_t written = stream->write(stream, paramValues_, sizeof(paramValues_));
     return written == sizeof(paramValues_);
 }
 
-bool SyrebasClap::stateLoad(const clap_istream_t* stream) {
+bool GritbaalClap::stateLoad(const clap_istream_t* stream) {
     if (!stream) return false;
     int64_t readBytes = stream->read(stream, paramValues_, sizeof(paramValues_));
     if (readBytes == sizeof(paramValues_)) {
@@ -531,24 +531,24 @@ bool SyrebasClap::stateLoad(const clap_istream_t* stream) {
 }
 
 // CLAP Plugin Entry Point
-static const char* g_syrebasFeatures[] = {
+static const char* g_gritbaalFeatures[] = {
     CLAP_PLUGIN_FEATURE_INSTRUMENT,
     CLAP_PLUGIN_FEATURE_SYNTHESIZER,
     CLAP_PLUGIN_FEATURE_STEREO,
     nullptr
 };
 
-static const clap_plugin_descriptor_t g_syrebasDescriptor = {
+static const clap_plugin_descriptor_t g_gritbaalDescriptor = {
     CLAP_VERSION,
-    "com.syrebas.synth",
-    "Syrebas",
-    "Syrebas Synth",
-    "https://github.com/syrebas/syrebas",
+    "com.gritbaal.synth",
+    "Gritbaal",
+    "Gritbaal Synth",
+    "https://github.com/gritbaal/gritbaal",
     "",
     "",
     "1.0.0",
     "Roland TB-303 Bass Synth Emulator",
-    g_syrebasFeatures
+    g_gritbaalFeatures
 };
 
 static uint32_t clap_factory_get_plugin_count(const clap_plugin_factory_t* factory) {
@@ -556,18 +556,18 @@ static uint32_t clap_factory_get_plugin_count(const clap_plugin_factory_t* facto
 }
 
 static const clap_plugin_descriptor_t* clap_factory_get_plugin_descriptor(const clap_plugin_factory_t* factory, uint32_t index) {
-    return (index == 0) ? &g_syrebasDescriptor : nullptr;
+    return (index == 0) ? &g_gritbaalDescriptor : nullptr;
 }
 
 static const clap_plugin_t* clap_factory_create_plugin(const clap_plugin_factory_t* factory, const clap_host_t* host, const char* plugin_id) {
     if (!clap_version_is_compatible(host->clap_version)) return nullptr;
-    if (std::strcmp(plugin_id, g_syrebasDescriptor.id) != 0) return nullptr;
+    if (std::strcmp(plugin_id, g_gritbaalDescriptor.id) != 0) return nullptr;
 
-    auto* plugin = new SyrebasClap(host);
+    auto* plugin = new GritbaalClap(host);
     return plugin->getClapPlugin();
 }
 
-static const clap_plugin_factory_t g_syrebasFactory = {
+static const clap_plugin_factory_t g_gritbaalFactory = {
     clap_factory_get_plugin_count,
     clap_factory_get_plugin_descriptor,
     clap_factory_create_plugin
@@ -581,16 +581,16 @@ static void entry_deinit() {}
 
 static const void* entry_get_factory(const char* factory_id) {
     if (std::strcmp(factory_id, CLAP_PLUGIN_FACTORY_ID) == 0) {
-        return &g_syrebasFactory;
+        return &g_gritbaalFactory;
     }
     return nullptr;
 }
 
-} // namespace syrebas
+} // namespace gritbaal
 
 extern "C" CLAP_EXPORT const clap_plugin_entry_t clap_entry = {
     CLAP_VERSION,
-    syrebas::entry_init,
-    syrebas::entry_deinit,
-    syrebas::entry_get_factory
+    gritbaal::entry_init,
+    gritbaal::entry_deinit,
+    gritbaal::entry_get_factory
 };

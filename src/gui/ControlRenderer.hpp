@@ -1,9 +1,9 @@
-#ifndef SYREBAS_CONTROL_RENDERER_HPP
-#define SYREBAS_CONTROL_RENDERER_HPP
+#ifndef GRITBAAL_CONTROL_RENDERER_HPP
+#define GRITBAAL_CONTROL_RENDERER_HPP
 
 #include "IControlRenderer.hpp"
 
-namespace syrebas {
+namespace gritbaal {
 
 class TB303ControlRenderer : public IControlRenderer {
 public:
@@ -14,6 +14,6 @@ public:
     void drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) override;
 };
 
-} // namespace syrebas
+} // namespace gritbaal
 
-#endif // SYREBAS_CONTROL_RENDERER_HPP
+#endif // GRITBAAL_CONTROL_RENDERER_HPP

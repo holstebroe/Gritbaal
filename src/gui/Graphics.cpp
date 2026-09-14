@@ -2,7 +2,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace syrebas {
+namespace gritbaal {
 
 Graphics::Graphics(uint32_t* buffer, int width, int height, int scale)
     : buffer_(buffer), width_(width), height_(height), scale_(scale),
@@ -300,4 +300,4 @@ void Graphics::drawText(int x, int y, const char* text, uint32_t color, const Fo
     }
 }
 
-} // namespace syrebas
+} // namespace gritbaal

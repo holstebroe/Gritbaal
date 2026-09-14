@@ -46,8 +46,8 @@ void writeWav(const std::string& filename, const std::vector<float>& samples, in
     std::cout << "Wrote " << filename << " (" << samples.size() << " samples)\n";
 }
 
-static float runTestForMode(syrebas::EmulationMode mode, const std::string& wavFilename) {
-    syrebas::SynthEngine engine;
+static float runTestForMode(gritbaal::EmulationMode mode, const std::string& wavFilename) {
+    gritbaal::SynthEngine engine;
     engine.setSampleRate(44100.0);
 
     auto& params = engine.getParams();
@@ -57,7 +57,7 @@ static float runTestForMode(syrebas::EmulationMode mode, const std::string& wavF
     params.envMod = 0.8f;
     params.decay = 0.5f;
     params.accent = 0.9f;
-    params.waveform = syrebas::Waveform::Saw;
+    params.waveform = gritbaal::Waveform::Saw;
     params.masterVolume = 0.8f;
 
     std::vector<float> audioBuffer;
@@ -134,10 +134,10 @@ static float runTestForMode(syrebas::EmulationMode mode, const std::string& wavF
 }
 
 int main() {
-    float accurateMax = runTestForMode(syrebas::EmulationMode::Accurate, "test_syrebas_accurate.wav");
+    float accurateMax = runTestForMode(gritbaal::EmulationMode::Accurate, "test_gritbaal_accurate.wav");
     std::cout << "Accurate mode DSP test completed. Max peak amplitude: " << accurateMax << "\n";
 
-    float simplifiedMax = runTestForMode(syrebas::EmulationMode::Simplified, "test_syrebas_simplified.wav");
+    float simplifiedMax = runTestForMode(gritbaal::EmulationMode::Simplified, "test_gritbaal_simplified.wav");
     std::cout << "Simplified mode DSP test completed. Max peak amplitude: " << simplifiedMax << "\n";
 
     std::cout << "All DSP tests completed successfully.\n";
