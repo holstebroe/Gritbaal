@@ -1,7 +1,7 @@
-#ifndef SYREBAS_I_CONTROL_RENDERER_HPP
-#define SYREBAS_I_CONTROL_RENDERER_HPP
+#ifndef GRITBAAL_I_CONTROL_RENDERER_HPP
+#define GRITBAAL_I_CONTROL_RENDERER_HPP
 
-namespace syrebas {
+namespace gritbaal {
 
 class Graphics;
 class Font;
@@ -15,6 +15,6 @@ public:
     virtual void drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) = 0;
 };
 
-} // namespace syrebas
+} // namespace gritbaal
 
-#endif // SYREBAS_I_CONTROL_RENDERER_HPP
+#endif // GRITBAAL_I_CONTROL_RENDERER_HPP

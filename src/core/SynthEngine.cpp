@@ -1,7 +1,7 @@
 #include "SynthEngine.hpp"
 #include <algorithm>
 
-namespace syrebas {
+namespace gritbaal {
 
 SynthEngine::SynthEngine() {
     setSampleRate(44100.0);
@@ -170,4 +170,4 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     }
 }
 
-} // namespace syrebas
+} // namespace gritbaal

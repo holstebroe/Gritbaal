@@ -1,5 +1,5 @@
-#ifndef SYREBAS_CLAP_HPP
-#define SYREBAS_CLAP_HPP
+#ifndef GRITBAAL_CLAP_HPP
+#define GRITBAAL_CLAP_HPP
 
 #include <clap/clap.h>
 #include "core/SynthEngine.hpp"
@@ -7,7 +7,7 @@
 #include <vector>
 #include <mutex>
 
-namespace syrebas {
+namespace gritbaal {
 
 struct GuiParamEvent {
     uint16_t type; // CLAP_EVENT_PARAM_GESTURE_BEGIN, CLAP_EVENT_PARAM_VALUE, CLAP_EVENT_PARAM_GESTURE_END
@@ -41,10 +41,10 @@ enum MidiParamId : clap_id {
     MIDI_PARAM_COUNT = 8
 };
 
-class SyrebasClap {
+class GritbaalClap {
 public:
-    explicit SyrebasClap(const clap_host_t* host);
-    ~SyrebasClap() = default;
+    explicit GritbaalClap(const clap_host_t* host);
+    ~GritbaalClap() = default;
 
     const clap_plugin_t* getClapPlugin() const { return &clapPlugin_; }
 
@@ -101,6 +101,6 @@ private:
     void syncParamsToEngine();
 };
 
-} // namespace syrebas
+} // namespace gritbaal
 
-#endif // SYREBAS_CLAP_HPP
+#endif // GRITBAAL_CLAP_HPP

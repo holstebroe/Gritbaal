@@ -1,6 +1,6 @@
 #include "Font.hpp"
 
-namespace syrebas {
+namespace gritbaal {
 
 // 5x7 ASCII bitmap font (characters 32 to 95)
 static const uint8_t font5x7[64][5] = {
@@ -84,4 +84,4 @@ const Font& Font::default5x7() {
     return defFont;
 }
 
-} // namespace syrebas
+} // namespace gritbaal

@@ -1,7 +1,7 @@
-#ifndef SYREBAS_ENVELOPE_HPP
-#define SYREBAS_ENVELOPE_HPP
+#ifndef GRITBAAL_ENVELOPE_HPP
+#define GRITBAAL_ENVELOPE_HPP
 
-namespace syrebas {
+namespace gritbaal {
 
 class Envelope {
 public:
@@ -53,6 +53,6 @@ private:
     void updateCoefficients();
 };
 
-} // namespace syrebas
+} // namespace gritbaal
 
-#endif // SYREBAS_ENVELOPE_HPP
+#endif // GRITBAAL_ENVELOPE_HPP

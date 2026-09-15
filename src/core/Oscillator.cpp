@@ -2,7 +2,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace syrebas {
+namespace gritbaal {
 
 Oscillator::Oscillator() {
     setSampleRate(44100.0);
@@ -99,4 +99,4 @@ float Oscillator::processNextSample() {
     return out;
 }
 
-} // namespace syrebas
+} // namespace gritbaal

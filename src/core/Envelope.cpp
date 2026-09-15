@@ -2,7 +2,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace syrebas {
+namespace gritbaal {
 
 Envelope::Envelope() {
     setSampleRate(44100.0);
@@ -125,4 +125,4 @@ void Envelope::processNextSample() {
     accentVca_ += accentVcaCoeff_ * (accentVcaTarget - accentVca_);
 }
 
-} // namespace syrebas
+} // namespace gritbaal

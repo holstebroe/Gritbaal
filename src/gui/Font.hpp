@@ -1,10 +1,10 @@
-#ifndef SYREBAS_FONT_HPP
-#define SYREBAS_FONT_HPP
+#ifndef GRITBAAL_FONT_HPP
+#define GRITBAAL_FONT_HPP
 
 #include <cstdint>
 #include <cstddef>
 
-namespace syrebas {
+namespace gritbaal {
 
 class Font {
 public:
@@ -23,6 +23,6 @@ private:
     const uint8_t (*glyphData_)[5]{nullptr};
 };
 
-} // namespace syrebas
+} // namespace gritbaal
 
-#endif // SYREBAS_FONT_HPP
+#endif // GRITBAAL_FONT_HPP

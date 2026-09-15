@@ -1,11 +1,11 @@
-#ifndef SYREBAS_SYNTH_ENGINE_HPP
-#define SYREBAS_SYNTH_ENGINE_HPP
+#ifndef GRITBAAL_SYNTH_ENGINE_HPP
+#define GRITBAAL_SYNTH_ENGINE_HPP
 
 #include "Oscillator.hpp"
 #include "Envelope.hpp"
 #include "Filter.hpp"
 
-namespace syrebas {
+namespace gritbaal {
 
 enum class EmulationMode {
     Accurate = 0,
@@ -57,6 +57,6 @@ private:
     float vcaReleaseCoeff_{0.0f};
 };
 
-} // namespace syrebas
+} // namespace gritbaal
 
-#endif // SYREBAS_SYNTH_ENGINE_HPP
+#endif // GRITBAAL_SYNTH_ENGINE_HPP
