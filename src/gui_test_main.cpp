@@ -54,10 +54,10 @@ int main() {
     mockOutList.try_push = TestOutEvents::tryPush;
 
     // Test mouse interaction and Shift fine tuning
-    // Cutoff Knob is at x=60, y=95 (minVal=0.0, maxVal=1.0)
+    // Cutoff Knob is at x=580, y=100 (minVal=0.0, maxVal=1.0)
     // 1. Standard mouse drag test (isShift = false)
-    gui.handleMouseDown(60, 95, false);
-    gui.handleMouseDrag(60, 15, false); // Drag up 80 pixels
+    gui.handleMouseDown(580, 100, false);
+    gui.handleMouseDrag(580, 20, false); // Drag up 80 pixels
     gui.handleMouseUp();
 
     double valNormal = 0.0;
@@ -75,8 +75,8 @@ int main() {
     std::cout << "GUI output event gesture queue test passed successfully! Events recorded: " << testCtx.types.size() << std::endl;
 
     // 2. Fine mouse drag test (isShift = true)
-    gui.handleMouseDown(165, 95, true); // Resonance knob at (165, 95) with Shift
-    gui.handleMouseDrag(165, 15, true);  // Drag up 80 pixels with Shift (from initial 0.5)
+    gui.handleMouseDown(670, 100, true); // Resonance knob at (670, 100) with Shift
+    gui.handleMouseDrag(670, 20, true);  // Drag up 80 pixels with Shift (from initial 0.5)
     gui.handleMouseUp();
 
     double valFine = 0.0;

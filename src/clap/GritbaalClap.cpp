@@ -133,6 +133,26 @@ GritbaalClap::GritbaalClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_VOLUME] = 0.8;
     paramValues_[PARAM_MODE] = 0.0; // 0 = Accurate, 1 = Simplified
 
+    paramValues_[PARAM_VCO1_WAVE] = 0.0;
+    paramValues_[PARAM_VCO1_PW] = 0.5;
+    paramValues_[PARAM_VCO2_WAVE] = 0.0;
+    paramValues_[PARAM_VCO2_PW] = 0.5;
+    paramValues_[PARAM_VCO2_DETUNE] = 0.5; // semitones mapped 0..1 (-24..+24)
+    paramValues_[PARAM_FM_AMOUNT] = 0.0;
+    paramValues_[PARAM_HARD_SYNC] = 0.0;
+
+    paramValues_[PARAM_VCO1_VOL] = 1.0;
+    paramValues_[PARAM_VCO2_VOL] = 0.0;
+    paramValues_[PARAM_RING_MOD] = 0.0;
+    paramValues_[PARAM_SUB_VOL] = 0.0;
+    paramValues_[PARAM_NOISE_VOL] = 0.0;
+    paramValues_[PARAM_PRE_DRIVE] = 0.0;
+    paramValues_[PARAM_OVERDRIVE] = 0.0;
+
+    paramValues_[PARAM_FILTER_TYPE] = 0.0; // 0 = Transistor Ladder, 1 = Diode Sallen Key
+    paramValues_[PARAM_THERMAL_DRIFT] = 0.1;
+    paramValues_[PARAM_POWER_SAG] = 0.1;
+
     syncParamsToEngine();
 }
 
@@ -183,6 +203,23 @@ void GritbaalClap::syncParamsToEngine() {
     params.waveform = (paramValues_[PARAM_WAVEFORM] >= 0.5) ? Waveform::Square : Waveform::Saw;
     params.masterVolume = static_cast<float>(paramValues_[PARAM_VOLUME]);
     params.mode = (paramValues_[PARAM_MODE] >= 0.5) ? EmulationMode::Simplified : EmulationMode::Accurate;
+
+    params.vco1PulseWidth = static_cast<float>(paramValues_[PARAM_VCO1_PW]);
+    params.vco2PulseWidth = static_cast<float>(paramValues_[PARAM_VCO2_PW]);
+    params.vco2Detune = static_cast<float>((paramValues_[PARAM_VCO2_DETUNE] - 0.5) * 48.0); // -24 to +24 semitones
+    params.fmAmount = static_cast<float>(paramValues_[PARAM_FM_AMOUNT]);
+    params.hardSync = (paramValues_[PARAM_HARD_SYNC] >= 0.5);
+
+    params.vco1Level = static_cast<float>(paramValues_[PARAM_VCO1_VOL]);
+    params.vco2Level = static_cast<float>(paramValues_[PARAM_VCO2_VOL]);
+    params.subLevel = static_cast<float>(paramValues_[PARAM_SUB_VOL]);
+    params.noiseLevel = static_cast<float>(paramValues_[PARAM_NOISE_VOL]);
+    params.preFilterDrive = 1.0f + static_cast<float>(paramValues_[PARAM_PRE_DRIVE]) * 4.0f; // 1.0 to 5.0
+    params.overdriveAmount = static_cast<float>(paramValues_[PARAM_OVERDRIVE]);
+
+    params.filterType = (paramValues_[PARAM_FILTER_TYPE] >= 0.5) ? FilterType::SallenKey : FilterType::TransistorLadder;
+    params.thermalDrift = static_cast<float>(paramValues_[PARAM_THERMAL_DRIFT]);
+    params.powerSagAmount = static_cast<float>(paramValues_[PARAM_POWER_SAG]);
 }
 
 void GritbaalClap::handleEvent(const clap_event_header_t* header) {
@@ -362,6 +399,129 @@ bool GritbaalClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo)
             paramInfo->min_value = 0.0;
             paramInfo->max_value = 1.0;
             paramInfo->default_value = 0.0; // 0 = Accurate, 1 = Simplified
+            break;
+        case PARAM_VCO1_WAVE:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO1 Wave");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "VCO");
+            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.0;
+            break;
+        case PARAM_VCO1_PW:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO1 PW");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "VCO");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.5;
+            break;
+        case PARAM_VCO2_WAVE:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO2 Wave");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "VCO");
+            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.0;
+            break;
+        case PARAM_VCO2_PW:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO2 PW");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "VCO");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.5;
+            break;
+        case PARAM_VCO2_DETUNE:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO2 Detune");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "VCO");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.5;
+            break;
+        case PARAM_FM_AMOUNT:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Pitch FM");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "VCO");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.0;
+            break;
+        case PARAM_HARD_SYNC:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Hard Sync");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "VCO");
+            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.0;
+            break;
+        case PARAM_VCO1_VOL:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO1 Vol");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Mixer");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 1.0;
+            break;
+        case PARAM_VCO2_VOL:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO2 Vol");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Mixer");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.0;
+            break;
+        case PARAM_RING_MOD:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Ring Mod");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Mixer");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.0;
+            break;
+        case PARAM_SUB_VOL:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Sub Vol");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Mixer");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.0;
+            break;
+        case PARAM_NOISE_VOL:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Noise Vol");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Mixer");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.0;
+            break;
+        case PARAM_PRE_DRIVE:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Pre-Drive");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Drive");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.0;
+            break;
+        case PARAM_OVERDRIVE:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Tube Overdrive");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Drive");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.0;
+            break;
+        case PARAM_FILTER_TYPE:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Type");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Filter");
+            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.0; // 0 = Ladder, 1 = MS20
+            break;
+        case PARAM_THERMAL_DRIFT:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Thermal Drift");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Global");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.1;
+            break;
+        case PARAM_POWER_SAG:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Power Sag");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Global");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.1;
             break;
         default:
             return false;
