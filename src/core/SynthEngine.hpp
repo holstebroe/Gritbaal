@@ -79,6 +79,11 @@ public:
     Oscillator& getOscillator() { return osc_; }
     Filter& getFilter() { return filter_; }
 
+    // Modulated Realtime Values for UI double-arc rendering
+    float getEffectiveCutoffNorm() const { return effectiveCutoffNorm_; }
+    float getEffectivePw1Norm() const { return effectivePw1Norm_; }
+    float getEffectivePw2Norm() const { return effectivePw2Norm_; }
+
 private:
     double sampleRate_{44100.0};
     SynthParameters params_;
@@ -92,6 +97,11 @@ private:
 
     int currentNote_{-1};
     bool isNoteActive_{false};
+
+    // Effective modulated parameter values for UI feedback
+    float effectiveCutoffNorm_{0.5f};
+    float effectivePw1Norm_{0.5f};
+    float effectivePw2Norm_{0.5f};
 
     // Power Supply Rail Sag Simulation State
     float railVoltage_{1.0f};

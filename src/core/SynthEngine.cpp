@@ -27,6 +27,9 @@ void SynthEngine::reset() {
     isNoteActive_ = false;
     railVoltage_ = 1.0f;
     powerSagLpf_ = 0.0f;
+    effectiveCutoffNorm_ = 0.5f;
+    effectivePw1Norm_ = 0.5f;
+    effectivePw2Norm_ = 0.5f;
 }
 
 void SynthEngine::noteOn(int noteNumber, float velocity) {
@@ -121,6 +124,9 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         osc_.setVco1PulseWidth(modulatedPw1);
         osc_.setVco2PulseWidth(modulatedPw2);
 
+        effectivePw1Norm_ = (modulatedPw1 - 0.05f) / 0.90f;
+        effectivePw2Norm_ = (modulatedPw2 - 0.05f) / 0.90f;
+
         // 2. Generate oscillator signal
         float rawOsc = osc_.processNextSample();
 
@@ -131,9 +137,13 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float vcfEnvVal = env1_.getValue();
         float vcaEnvVal = env2_.getValue();
 
-        float cNorm = std::clamp(params_.cutoff + lfo1Val, 0.0f, 1.0f);
-        float resNorm = std::clamp(params_.resonance, 0.0f, 1.0f);
+        // Calculate effective normalized cutoff considering base knob, LFO1, and ENV1 (VCF Env)
+        float baseCutoff = std::clamp(params_.cutoff, 0.0f, 1.0f);
         float envModNorm = std::clamp(params_.envMod, 0.0f, 1.0f);
+        float modCutoff = baseCutoff + lfo1Val + envModNorm * vcfEnvVal;
+        effectiveCutoffNorm_ = std::clamp(modCutoff, 0.0f, 1.0f);
+
+        float resNorm = std::clamp(params_.resonance, 0.0f, 1.0f);
 
         // Power Supply Rail Sag: dynamic voltage drop under heavy low-frequency load
         float load = std::abs(rawOsc) * vcaEnvVal;
@@ -144,7 +154,8 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float filterOut = 0.0f;
         float vcaSignal = 0.0f;
 
-        // Exponential mapping for cutoff
+        // Exponential mapping for cutoff frequency
+        float cNorm = std::clamp(baseCutoff + lfo1Val, 0.0f, 1.0f);
         float cTaper = cNorm * cNorm;
         float cv_base = 3.64385f * cTaper;
         float cv_envmod = envModNorm * vcfEnvVal * 4.0f;
@@ -162,10 +173,13 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
 
         vcaSignal = filterOut * vcaEnvVal;
 
-        // Warmth Saturation (Even-harmonic tube warmth): y = x + warmth * (x^2 * 0.25)
+        // Exaggerated Warmth Saturation (rich second-harmonic analog warmth + soft asymmetric clipping):
+        // y = x + warmth * (0.8 * x^2 + 0.3 * x^3)
         if (params_.warmthAmount > 0.001f) {
             float w = params_.warmthAmount;
-            vcaSignal = vcaSignal + w * 0.35f * (vcaSignal * vcaSignal);
+            float sq = vcaSignal * vcaSignal;
+            float cube = sq * vcaSignal;
+            vcaSignal = std::tanh(vcaSignal + w * (0.85f * sq + 0.35f * cube));
         }
 
         // Post-Filter Tube / Diode Overdrive Waveshaper: y = tanh(x + 0.15 * x^2)

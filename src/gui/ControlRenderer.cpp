@@ -124,6 +124,10 @@ void TB303ControlRenderer::drawLedIndicator(Graphics& g, int cx, int cy, bool st
 // ==========================================================
 
 void IndustrialGritbaalRenderer::drawKnob(Graphics& g, const Control& knob, const Font& font) {
+    drawKnobModulated(g, knob, font, knob.currentVal);
+}
+
+void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& knob, const Font& font, double modValNorm) {
     // 1. Label centered above knob (Amber/Gold glow color on dark plate)
     int labelLen = static_cast<int>(strlen(knob.label));
     int labelX = knob.x - (labelLen * (font.getWidth() + 1)) / 2;
@@ -134,15 +138,20 @@ void IndustrialGritbaalRenderer::drawKnob(Graphics& g, const Control& knob, cons
     double totalAngle = 270.0 * M_PI / 180.0;
 
     double normVal = (knob.currentVal - knob.minVal) / (knob.maxVal - knob.minVal);
-    normVal = (std::min)((std::max)(normVal, 0.0), 1.0);
+    normVal = std::clamp(normVal, 0.0, 1.0);
     double activeAngle = startAngle + normVal * totalAngle;
 
     // Background track arc (Dark Copper)
     g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(startAngle), static_cast<float>(startAngle + totalAngle), 0xFF3A2010, 2);
-    // Active track arc (Glowing Volcanic Orange/Red)
+    // Active base track arc (Glowing Volcanic Orange/Red)
     if (normVal > 0.01) {
         g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(startAngle), static_cast<float>(activeAngle), 0xFFFF4500, 2);
     }
+
+    // Second Arc: Realtime Modulated Position (Bright Neon Cyan/Yellow glow)
+    double mNorm = std::clamp(modValNorm, 0.0, 1.0);
+    double modAngle = startAngle + mNorm * totalAngle;
+    g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(startAngle), static_cast<float>(modAngle), 0xFF00E5FF, 2);
 
     // Tick marks at minimum and maximum
     int rIn = knob.radius + 4;

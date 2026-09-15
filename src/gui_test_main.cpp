@@ -139,6 +139,9 @@ int main() {
         void drawKnob(gritbaal::Graphics& g, const gritbaal::Control& ctrl, const gritbaal::Font& font) override {
             knobDrawn = true;
         }
+        void drawKnobModulated(gritbaal::Graphics& g, const gritbaal::Control& ctrl, const gritbaal::Font& font, double modValNorm) override {
+            knobDrawn = true;
+        }
         void drawToggleSwitch(gritbaal::Graphics& g, const gritbaal::Control& ctrl, const gritbaal::Font& font) override {
             switchDrawn = true;
         }

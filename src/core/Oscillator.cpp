@@ -97,21 +97,29 @@ double Oscillator::generatePolyBlepWave(double phase, double phaseInc, Waveform 
 
 double Oscillator::generateNoiseSample() {
     if (noiseType_ == NoiseType::White) {
-        return gaussianDist_(rng_) * 0.3;
+        if (noiseLevel_ <= 0.0001) return 0.0;
+        return gaussianDist_(rng_) * 0.3 * noiseLevel_;
     } else if (noiseType_ == NoiseType::Crackle) {
-        // Poisson micro-spike crackle noise with low-frequency rumble state
+        if (noiseLevel_ <= 0.0001) {
+            crackleState_ = 0.0;
+            return 0.0;
+        }
+        // Poisson micro-spike crackle noise:
+        // noiseLevel_ controls spike PROBABILITY (geiger counter rate) from ~5 spikes/sec to ~3000 spikes/sec
+        double minRate = 5.0;
+        double maxRate = 3000.0;
+        double currentRate = minRate + std::pow(noiseLevel_, 2.0) * (maxRate - minRate);
+        double spikeProb = currentRate / sampleRate_;
+
         double spike = 0.0;
-        // Poisson process with low rate (~1200 spikes per second)
-        double spikeProb = 1200.0 / sampleRate_;
         if (uniformDist_(rng_) < spikeProb) {
-            double amplitude = (uniformDist_(rng_) > 0.5 ? 1.0 : -1.0) * (0.4 + 0.6 * uniformDist_(rng_));
+            double amplitude = (uniformDist_(rng_) > 0.5 ? 1.0 : -1.0) * (0.5 + 0.5 * uniformDist_(rng_));
             spike = amplitude;
         }
-        // Rapid decaying impulse response for crackle micro-spikes + dark low rumble
-        crackleState_ = crackleState_ * 0.95 + spike;
+        crackleState_ = crackleState_ * 0.92 + spike;
         return crackleState_;
     } else {
-        // Paul Kellett's refined 3 dB/octave pinking filter
+        if (noiseLevel_ <= 0.0001) return 0.0;
         double white = gaussianDist_(rng_) * 0.3;
         pinkB0_ = 0.99886 * pinkB0_ + white * 0.0555179;
         pinkB1_ = 0.99332 * pinkB1_ + white * 0.0750759;
@@ -121,7 +129,7 @@ double Oscillator::generateNoiseSample() {
         pinkB5_ = -0.7616 * pinkB5_ - white * 0.0168980;
         double pink = pinkB0_ + pinkB1_ + pinkB2_ + pinkB3_ + pinkB4_ + pinkB5_ + pinkB6_ + white * 0.5362;
         pinkB6_ = white * 0.115926;
-        return pink * 0.12;
+        return pink * 0.12 * noiseLevel_;
     }
 }
 
@@ -186,14 +194,14 @@ float Oscillator::processNextSample() {
     }
     double subOut = (subPhase_ < 0.5) ? 0.75 : -0.75;
 
-    // 7. Noise Generation
+    // 7. Noise Generation (Crackle/Geiger)
     double noiseOut = generateNoiseSample();
 
     // 8. Mixer Summation
     double mixOut = vco1Level_ * vco1Out +
                     vco2Level_ * vco2Out +
                     subLevel_ * subOut +
-                    noiseLevel_ * noiseOut;
+                    noiseOut; // Noise level is directly scaled inside generateNoiseSample
 
     return static_cast<float>(mixOut);
 }
