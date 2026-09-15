@@ -2,9 +2,15 @@
 #define GRITBAAL_FILTER_HPP
 
 #include <cmath>
+#include <algorithm>
 #include <array>
 
 namespace gritbaal {
+
+enum class FilterType {
+    TransistorLadder = 0, // 4-pole 24dB/oct Transistor Ladder
+    SallenKey = 1         // 2-pole 12dB/oct MS-20 style Diode / Sallen-Key Filter
+};
 
 // Single TPT 1-pole Low-Pass Stage with capacitor memory state s[n]
 class TPTOnePole {
@@ -78,6 +84,10 @@ public:
     ~Filter() = default;
 
     void setSampleRate(double sampleRate);
+    void setFilterType(FilterType type) { filterType_ = type; }
+    FilterType getFilterType() const { return filterType_; }
+    void setPreDrive(float drive) { preDrive_ = std::max(1.0f, drive); }
+
     void reset();
 
     float processSample(float input, float cutoffHz, float resonance);
@@ -89,10 +99,17 @@ private:
     double sampleRate_{44100.0};
     double oversampledRate_{176400.0};
 
+    FilterType filterType_{FilterType::TransistorLadder};
+    float preDrive_{1.0f};
+
     TPTOnePole stage1_;
     TPTOnePole stage2_;
     TPTOnePole stage3_;
     TPTOnePole stage4_;
+
+    // Sallen-Key (MS-20 style) Filter States
+    float skS1_{0.0f};
+    float skS2_{0.0f};
 
     // Coupled ladder node voltage states for accurate mode (v1, v2, v3, v4)
     float ladderV1_{0.0f};
@@ -106,7 +123,6 @@ private:
     HPFFeedback hpfFeedback_;
 
     // Diode ladder capacitor values / pole spreading for ~18dB/oct slope
-    // C1 = 10nF, C2 = 15nF, C3 = 33nF, C4 = 10nF -> conductance scale = 1/C
     const float capScale1_{1.0000f};
     const float capScale2_{0.6667f};
     const float capScale3_{0.3030f};
@@ -123,6 +139,7 @@ private:
     int downIdx2_{0};
 
     float processOversampledSample(float input, float cutoffHz, float resonance);
+    float processSallenKeySample(float input, float cutoffHz, float resonance);
 };
 
 } // namespace gritbaal

@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
+#include <cassert>
 
 void writeWav(const std::string& filename, const std::vector<float>& samples, int sampleRate = 44100) {
     std::ofstream file(filename, std::ios::binary);
@@ -12,12 +13,10 @@ void writeWav(const std::string& filename, const std::vector<float>& samples, in
     int chunkSize = 36 + dataSize;
     int byteRate = sampleRate * 2;
 
-    // RIFF Header
     file.write("RIFF", 4);
     file.write(reinterpret_cast<const char*>(&chunkSize), 4);
     file.write("WAVE", 4);
 
-    // fmt chunk
     file.write("fmt ", 4);
     int subchunk1Size = 16;
     short audioFormat = 1; // PCM
@@ -33,7 +32,6 @@ void writeWav(const std::string& filename, const std::vector<float>& samples, in
     file.write(reinterpret_cast<const char*>(&blockAlign), 2);
     file.write(reinterpret_cast<const char*>(&bitsPerSample), 2);
 
-    // data chunk
     file.write("data", 4);
     file.write(reinterpret_cast<const char*>(&dataSize), 4);
 
@@ -133,6 +131,45 @@ static float runTestForMode(gritbaal::EmulationMode mode, const std::string& wav
     return maxAbs;
 }
 
+static void testPhase2ExtendedDsp() {
+    std::cout << "\n--- Testing Phase 2 Extended Core DSP Engine ---" << std::endl;
+    gritbaal::SynthEngine engine;
+    engine.setSampleRate(44100.0);
+
+    auto& params = engine.getParams();
+    params.vco2Waveform = gritbaal::Waveform::Pulse;
+    params.vco1Level = 0.7f;
+    params.vco2Level = 0.6f;
+    params.vco2Detune = 7.0f; // Perfect fifth
+    params.fmAmount = 0.3f;
+    params.hardSync = true;
+    params.subLevel = 0.4f;
+    params.noiseLevel = 0.2f;
+    params.noiseType = gritbaal::NoiseType::Pink;
+    params.filterType = gritbaal::FilterType::SallenKey; // MS-20 style
+    params.preFilterDrive = 2.5f;
+    params.overdriveAmount = 0.5f;
+    params.powerSagAmount = 0.4f;
+    params.thermalDrift = 0.2f;
+
+    engine.noteOn(36, 0.9f); // Note On C2 with Accent
+
+    std::vector<float> left(512);
+    std::vector<float> right(512);
+    engine.processAudio(left.data(), right.data(), 512);
+
+    float maxAbs = 0.0f;
+    for (int i = 0; i < 512; ++i) {
+        assert(!std::isnan(left[i]) && !std::isinf(left[i]));
+        if (std::abs(left[i]) > maxAbs) {
+            maxAbs = std::abs(left[i]);
+        }
+    }
+
+    std::cout << "Phase 2 Extended DSP Test Passed! Peak output: " << maxAbs << std::endl;
+    assert(maxAbs > 0.01f);
+}
+
 int main() {
     float accurateMax = runTestForMode(gritbaal::EmulationMode::Accurate, "test_gritbaal_accurate.wav");
     std::cout << "Accurate mode DSP test completed. Max peak amplitude: " << accurateMax << "\n";
@@ -140,6 +177,8 @@ int main() {
     float simplifiedMax = runTestForMode(gritbaal::EmulationMode::Simplified, "test_gritbaal_simplified.wav");
     std::cout << "Simplified mode DSP test completed. Max peak amplitude: " << simplifiedMax << "\n";
 
-    std::cout << "All DSP tests completed successfully.\n";
+    testPhase2ExtendedDsp();
+
+    std::cout << "All Phase 2 DSP tests completed successfully.\n";
     return 0;
 }

@@ -39,52 +39,51 @@ void Filter::reset() {
     hpFbStateX1_ = 0.0f;
     hpFbStateY1_ = 0.0f;
     prevAccurateInput_ = 0.0f;
+
+    skS1_ = 0.0f;
+    skS2_ = 0.0f;
 }
 
 float Filter::processAccurateSample(float input, float cutoffHz, float resonance) {
+    // Apply Pre-Filter Drive Stage
+    float drivenInput = std::tanh(input * preDrive_);
+
+    if (filterType_ == FilterType::SallenKey) {
+        return processSallenKeySample(drivenInput, cutoffHz, resonance);
+    }
+
     // 4x oversampling step for accurate coupled diode ladder
     float dt = 1.0f / static_cast<float>(oversampledRate_);
     float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 18000.0f);
 
     float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz;
 
-    // High pass in feedback path: cutoff dynamically scales between 150 Hz and 250 Hz (Section 13)
     float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
     float hpfCutoff = 150.0f + 100.0f * resNorm;
     float hpfAlpha = 1.0f / (1.0f + 2.0f * 3.14159265358979323846f * hpfCutoff * dt);
 
-    // Coupled 4-stage diode ladder oscillation threshold k = 33.0 for self-oscillation & intense squelch
     float kFb = resNorm * 33.0f;
 
-    // Physical BJT thermal voltage V_T = 26mV. Effective scale factor Vt = 2*V_T = 0.052V (Vt_inv = 1 / 0.052 = 19.23)
     const float Vt = 0.052f;
     const float Vt_inv = 19.23f;
 
     float accOut = 0.0f;
 
     float prevIn = prevAccurateInput_;
-    prevAccurateInput_ = input;
+    prevAccurateInput_ = drivenInput;
 
     for (int os = 0; os < 4; ++os) {
-        // Linear interpolation across 4x oversampling sub-steps
         float alphaOS = static_cast<float>(os + 1) / 4.0f;
-        float currIn = prevIn + alphaOS * (input - prevIn);
+        float currIn = prevIn + alphaOS * (drivenInput - prevIn);
 
-        // Physical input signal voltage entering the ladder buffer (~0.05V RMS)
         float inSample = currIn * 0.05f;
 
-        // Feedback calculation (hpOut is in volts matching ladderV4_)
         float hpOut = hpfAlpha * (hpFbStateY1_ + ladderV4_ - hpFbStateX1_);
         hpFbStateX1_ = ladderV4_;
         hpFbStateY1_ = hpOut;
 
         float u = inSample - hpOut * kFb;
 
-        // Coupled Diode Ladder Differential Equations with physical BJT differential pair scaling (Section 7, 84)
-        // dv1/dt = w * Vt * [ tanh((u - v1)/Vt) - tanh((v1 - v2)/Vt) ]
-        // dv2/dt = w * Vt * [ tanh((v1 - v2)/Vt) - tanh((v2 - v3)/Vt) ]
-        // dv3/dt = w * Vt * [ tanh((v2 - v3)/Vt) - tanh((v3 - v4)/Vt) ]
-        // dv4/dt = 2w * Vt * tanh((v3 - v4)/Vt)
         float h = dt;
         float v1 = ladderV1_;
         float v2 = ladderV2_;
@@ -116,22 +115,53 @@ float Filter::processAccurateSample(float input, float cutoffHz, float resonance
         ladderV3_ += h * dv3_2;
         ladderV4_ += h * dv4_2;
 
-        accOut += (ladderV4_ / 0.05f) * 0.25f; // Normalize voltage and average 4x decimation
+        accOut += (ladderV4_ / 0.05f) * 0.25f;
     }
 
     return accOut;
 }
 
+float Filter::processSallenKeySample(float input, float cutoffHz, float resonance) {
+    // 2-pole Sallen-Key Diode Filter (MS-20 style screaming self-oscillating VCF)
+    float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 18000.0f);
+    float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
+
+    float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz;
+    float g = std::tan(wc / (2.0f * static_cast<float>(sampleRate_)));
+    float k = resNorm * 2.2f; // Sallen-Key resonance scaling up to screaming self-oscillation boundary
+
+    // Diode feedback clipping non-linearity in Sallen-Key loop: y_fb = tanh(k * y2)
+    float y2 = skS2_;
+    for (int iter = 0; iter < 3; ++iter) {
+        float satFb = std::tanh(k * y2);
+        float u = input - satFb;
+        float v1 = (g * u + skS1_) / (1.0f + g);
+        float v2 = (g * v1 + skS2_) / (1.0f + g);
+        y2 = v2;
+    }
+
+    // Final state update pass
+    float satFb = std::tanh(k * y2);
+    float u = input - satFb;
+    float v1 = (g * u + skS1_) / (1.0f + g);
+    skS1_ = 2.0f * v1 - skS1_;
+    float v2 = (g * v1 + skS2_) / (1.0f + g);
+    skS2_ = 2.0f * v2 - skS2_;
+
+    return v2;
+}
+
 float Filter::processOversampledSample(float input, float cutoffHz, float resonance) {
+    if (filterType_ == FilterType::SallenKey) {
+        return processSallenKeySample(input, cutoffHz, resonance);
+    }
+
     float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 18000.0f);
 
-    // Resonance Bass Drop: Dynamic HPF in feedback loop scaling between 150 Hz and 250 Hz as Resonance increases
     float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
     float hpfCutoff = 150.0f + 100.0f * resNorm;
     hpfFeedback_.setCutoff(hpfCutoff);
 
-    // Non-linear feedback gain scaling (TB-303 diode ladder oscillation threshold ~17.0)
-    // Max resonance gain scaled to 16.5f so high resonance squelches forcefully near oscillation boundary
     float resGain = resNorm * 16.5f;
 
     float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz;
@@ -142,21 +172,17 @@ float Filter::processOversampledSample(float input, float cutoffHz, float resona
     float g3 = gBase * capScale3_;
     float g4 = gBase * capScale4_;
 
-    // Save initial state memory prior to ZDF iteration loop
     float savedS1 = stage1_.getState();
     float savedS2 = stage2_.getState();
     float savedS3 = stage3_.getState();
     float savedS4 = stage4_.getState();
     HPFFeedback::State savedHpfState = hpfFeedback_.getState();
 
-    // Feedback path with non-linear saturation Feedback(x) = tanh(x * Resonance_Gain)
     float hpFb = hpfFeedback_.process(0.0f);
     float satFb = std::tanh(hpFb * resGain);
     float x1 = input - satFb;
 
-    // Fixed point iteration loop to resolve non-linear ZDF feedback
     for (int iter = 0; iter < 3; ++iter) {
-        // Restore state prior to trial processing
         stage1_.setState(savedS1);
         stage2_.setState(savedS2);
         stage3_.setState(savedS3);
@@ -173,14 +199,12 @@ float Filter::processOversampledSample(float input, float cutoffHz, float resona
         x1 = input - satFb;
     }
 
-    // Final state restoration before true state update step
     stage1_.setState(savedS1);
     stage2_.setState(savedS2);
     stage3_.setState(savedS3);
     stage4_.setState(savedS4);
     hpfFeedback_.setState(savedHpfState);
 
-    // Final forward pass updating capacitor memory
     float y1 = stage1_.process(x1, g1);
     float y2 = stage2_.process(y1, g2);
     float y3 = stage3_.process(y2, g3);
@@ -192,10 +216,16 @@ float Filter::processOversampledSample(float input, float cutoffHz, float resona
 }
 
 float Filter::processSample(float input, float cutoffHz, float resonance) {
+    float drivenInput = std::tanh(input * preDrive_);
+
+    if (filterType_ == FilterType::SallenKey) {
+        return processSallenKeySample(drivenInput, cutoffHz, resonance);
+    }
+
     float oversampledSamples[4];
 
     for (int i = 0; i < 2; ++i) {
-        float inVal = (i == 0) ? input * 2.0f : 0.0f;
+        float inVal = (i == 0) ? drivenInput * 2.0f : 0.0f;
         upBuffer1_[upIdx1_] = inVal;
 
         float stage1Out = 0.0f;

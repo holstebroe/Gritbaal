@@ -1,5 +1,6 @@
 #include "SynthEngine.hpp"
 #include <algorithm>
+#include <cmath>
 
 namespace gritbaal {
 
@@ -16,23 +17,36 @@ void SynthEngine::setSampleRate(double sampleRate) {
 
 void SynthEngine::reset() {
     filter_.reset();
+    osc_.resetFilterStates();
     currentNote_ = -1;
     isNoteActive_ = false;
     accentLevel_ = 0.0f;
+    railVoltage_ = 1.0f;
+    powerSagLpf_ = 0.0f;
 }
 
 void SynthEngine::noteOn(int noteNumber, float velocity) {
-    // Check if slide condition (a note is currently active and not finished)
     bool isSlide = isNoteActive_;
-
-    // Accent is triggered by velocity >= 0.8
     bool isAccent = (velocity >= 0.8f);
     accentLevel_ = isAccent ? 1.0f : 0.0f;
 
     currentNote_ = noteNumber;
     isNoteActive_ = true;
 
-    osc_.setWaveform(params_.waveform);
+    osc_.setVco1Waveform(params_.waveform);
+    osc_.setVco2Waveform(params_.vco2Waveform);
+    osc_.setVco1PulseWidth(params_.vco1PulseWidth);
+    osc_.setVco2PulseWidth(params_.vco2PulseWidth);
+    osc_.setVco2DetuneSemitones(params_.vco2Detune);
+    osc_.setFmAmount(params_.fmAmount);
+    osc_.setHardSync(params_.hardSync);
+    osc_.setVco1Level(params_.vco1Level);
+    osc_.setVco2Level(params_.vco2Level);
+    osc_.setSubLevel(params_.subLevel);
+    osc_.setNoiseLevel(params_.noiseLevel);
+    osc_.setNoiseType(params_.noiseType);
+    osc_.setThermalDriftAmount(params_.thermalDrift);
+
     osc_.noteOn(noteNumber, isSlide);
     env_.setDecay(params_.decay);
     env_.noteOn(isAccent, isSlide, params_.accent);
@@ -47,7 +61,22 @@ void SynthEngine::noteOff(int noteNumber) {
 }
 
 void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
-    osc_.setWaveform(params_.waveform);
+    osc_.setVco1Waveform(params_.waveform);
+    osc_.setVco2Waveform(params_.vco2Waveform);
+    osc_.setVco1PulseWidth(params_.vco1PulseWidth);
+    osc_.setVco2PulseWidth(params_.vco2PulseWidth);
+    osc_.setVco2DetuneSemitones(params_.vco2Detune);
+    osc_.setFmAmount(params_.fmAmount);
+    osc_.setHardSync(params_.hardSync);
+    osc_.setVco1Level(params_.vco1Level);
+    osc_.setVco2Level(params_.vco2Level);
+    osc_.setSubLevel(params_.subLevel);
+    osc_.setNoiseLevel(params_.noiseLevel);
+    osc_.setNoiseType(params_.noiseType);
+    osc_.setThermalDriftAmount(params_.thermalDrift);
+
+    filter_.setFilterType(params_.filterType);
+    filter_.setPreDrive(params_.preFilterDrive);
     env_.setDecay(params_.decay);
 
     for (int i = 0; i < numFrames; ++i) {
@@ -73,50 +102,47 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float envModNorm = std::min(std::max(params_.envMod, 0.0f), 1.0f);
         float accentNorm = std::min(std::max(params_.accent, 0.0f), 1.0f);
 
+        // Power Supply Rail Sag: dynamic voltage drop under heavy low-frequency load
+        float load = std::abs(rawOsc) * vcaEnvVal;
+        powerSagLpf_ += 0.005f * (load - powerSagLpf_);
+        railVoltage_ = 1.0f - params_.powerSagAmount * 0.25f * powerSagLpf_;
+        railVoltage_ = std::clamp(railVoltage_, 0.65f, 1.0f);
+
         float filterOut = 0.0f;
         float vcaSignal = 0.0f;
 
         if (params_.mode == EmulationMode::Accurate) {
-            // --- ACCURATE MODE: Current-Domain Control Summing & Coupled Diode Ladder ---
-            // Audio pot tapers (50 kOhm Audio / A taper) for Cutoff and Env Mod knobs
+            // --- ACCURATE MODE: Current-Domain Control Summing & Filter Processing ---
             float cTaper = cNorm * cNorm;
             float envModTaper = envModNorm * envModNorm;
 
-            // Base cutoff knob CV range: 200 Hz to 2.5 kHz (~3.64385 octaves)
             float cv_base = 3.64385f * cTaper;
-            // Env Mod baseline offset (+350 Hz / +0.80735 octaves at max Env Mod)
             float cv_offset = envModTaper * 0.80735f;
 
-            // Effective Env Mod depth for this sample (boosted on accent, scaled by accentNorm)
             float effectiveEnvMod = noteAccent ? (envModNorm + (1.0f - envModNorm) * accentNorm) : envModNorm;
             float effectiveEnvModTaper = effectiveEnvMod * effectiveEnvMod;
-            float cv_envmod = effectiveEnvModTaper * vcfEnvVal * 3.5f; // Up to 7.5 kHz sweep
+            float cv_envmod = effectiveEnvModTaper * vcfEnvVal * 3.5f;
 
-            // Dual-gang Resonance pot section 2 interaction with Accent Sweep:
             float directAccentPortion = (1.0f - resNorm * 0.7f) * vcfEnvVal;
             float sweepCapPortion = (resNorm * 0.7f) * accentCapVal;
             float accentSweepSignal = directAccentPortion + sweepCapPortion;
 
-            // Accent Sweep CV contribution to cutoff
             float cv_accent = noteAccent ? (accentNorm * accentSweepSignal * 1.5f) : (accentNorm * sweepCapPortion * 0.75f);
 
-            // Control Voltage Summing in control-current (exponential octave) domain
             float cv_total = cv_base + cv_offset + cv_envmod + cv_accent;
 
-            // Convert CV to frequency with Resonance CV Bleed (up to 15% reduction)
             float effectiveCutoff = 200.0f * std::pow(2.0f, cv_total) * (1.0f - (0.15f * resNorm));
+            // Power sag slightly lowers filter cutoff ceiling
+            effectiveCutoff *= railVoltage_;
             float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), 15000.0f);
 
-            // Coupled diode ladder filter simulation
             filterOut = filter_.processAccurateSample(rawOsc, totalCutoff, resNorm);
 
-            // BA662 VCA Model with control current summing (Section 23, 26)
             float vcaGain = vcaEnvVal;
             if (noteAccent) {
                 vcaGain += accentVcaVal * accentNorm * 0.8f;
             }
 
-            // Asymmetric BA662 VCA saturation (Section 44)
             float xVal = filterOut * vcaGain;
             if (xVal > 0.0f) {
                 vcaSignal = std::tanh(xVal * 1.1f);
@@ -143,6 +169,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
             float cv_total = cv_base + cv_offset + cv_envmod + cv_accent;
 
             float effectiveCutoff = 200.0f * std::pow(2.0f, cv_total) * (1.0f - (0.15f * resNorm));
+            effectiveCutoff *= railVoltage_;
             float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), 14000.0f);
 
             filterOut = filter_.processSample(rawOsc, totalCutoff, resNorm);
@@ -163,7 +190,16 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
             }
         }
 
-        float finalSample = vcaSignal * params_.masterVolume;
+        // Post-Filter Tube / Diode Overdrive Waveshaper (Section 5.3)
+        // y = tanh(x + 0.15 * x^2)
+        if (params_.overdriveAmount > 0.001f) {
+            float driveScale = 1.0f + params_.overdriveAmount * 3.0f;
+            float xDriven = vcaSignal * driveScale;
+            float asymmetricVal = xDriven + 0.15f * xDriven * xDriven;
+            vcaSignal = std::tanh(asymmetricVal);
+        }
+
+        float finalSample = vcaSignal * params_.masterVolume * railVoltage_;
 
         if (outLeft) outLeft[i] = finalSample;
         if (outRight) outRight[i] = finalSample;
