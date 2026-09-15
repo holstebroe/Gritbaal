@@ -22,8 +22,23 @@
 namespace gritbaal {
 
 GuiWindow::GuiWindow(GritbaalClap* plugin)
-    : plugin_(plugin), controlRenderer_(std::make_unique<TB303ControlRenderer>()) {
-    pixelBuffer_.resize(width_ * height_, 0xFFDBDFE1);
+    : plugin_(plugin), controlRenderer_(std::make_unique<IndustrialGritbaalRenderer>()),
+      width_(980), height_(480) {
+    pixelBuffer_.resize(width_ * height_, 0xFF141517);
+
+    // Initialize Panel Layout Engine according to Section 2 of docs/design_document.md
+    layout_ = std::make_unique<PanelLayout>(width_, height_);
+    // Top Row Panels (y: 35, height: 200)
+    layout_->addPanel("VCO SECTION", 15, 35, 260, 200);
+    layout_->addPanel("MIX & DRIVE", 285, 35, 230, 200);
+    layout_->addPanel("VCF SECTION", 525, 35, 220, 200);
+    layout_->addPanel("ENVELOPES & VCA", 755, 35, 210, 200);
+
+    // Bottom Row Panels (y: 245, height: 220)
+    layout_->addPanel("MODULATION", 15, 245, 260, 220);
+    layout_->addPanel("GLOBAL & DRIFT", 285, 245, 230, 220);
+    layout_->addPanel("OUTPUT & MASTER", 525, 245, 440, 220);
+
     initControls();
 }
 
@@ -33,18 +48,47 @@ GuiWindow::~GuiWindow() {
 
 void GuiWindow::initControls() {
     controls_.clear();
-    // 5 Main Knobs
-    controls_.push_back({ PARAM_CUTOFF, "CUT OFF FREQ", ControlType::Knob, 55, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_RESONANCE, "RESONANCE", ControlType::Knob, 130, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_ENV_MOD, "ENV MOD", ControlType::Knob, 205, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_DECAY, "DECAY", ControlType::Knob, 280, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_ACCENT, "ACCENT", ControlType::Knob, 355, 100, 20, 0.0, 1.0, 0.5, false });
 
-    // Waveform Toggle Switch
-    controls_.push_back({ PARAM_WAVEFORM, "WAVEFORM", ControlType::ToggleSwitch, 425, 100, 15, 0.0, 1.0, 0.0, true });
+    // 1. VCO SECTION (x: 15..275, y: 35..235)
+    controls_.push_back({ PARAM_WAVEFORM, "VCO1 WAVE", ControlType::ToggleSwitch, 60, 100, 15, 0.0, 1.0, 0.0, true });
+    controls_.push_back({ PARAM_VCO1_PW, "VCO1 PW", ControlType::Knob, 135, 100, 18, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_VCO2_WAVE, "VCO2 WAVE", ControlType::ToggleSwitch, 210, 100, 15, 0.0, 1.0, 0.0, true });
 
-    // Master Volume Knob
-    controls_.push_back({ PARAM_VOLUME, "VOLUME", ControlType::Knob, 485, 100, 18, 0.0, 1.0, 0.8, false });
+    controls_.push_back({ PARAM_VCO2_PW, "VCO2 PW", ControlType::Knob, 60, 175, 18, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_VCO2_DETUNE, "DETUNE", ControlType::Knob, 135, 175, 18, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_FM_AMOUNT, "PITCH FM", ControlType::Knob, 210, 175, 18, 0.0, 1.0, 0.0, false });
+
+    // 2. MIX & DRIVE SECTION (x: 285..515, y: 35..235)
+    controls_.push_back({ PARAM_VCO1_VOL, "VCO1 VOL", ControlType::Knob, 335, 100, 18, 0.0, 1.0, 1.0, false });
+    controls_.push_back({ PARAM_VCO2_VOL, "VCO2 VOL", ControlType::Knob, 400, 100, 18, 0.0, 1.0, 0.0, false });
+    controls_.push_back({ PARAM_RING_MOD, "RING MOD", ControlType::Knob, 465, 100, 18, 0.0, 1.0, 0.0, false });
+
+    controls_.push_back({ PARAM_SUB_VOL, "SUB VOL", ControlType::Knob, 335, 175, 18, 0.0, 1.0, 0.0, false });
+    controls_.push_back({ PARAM_NOISE_VOL, "NOISE", ControlType::Knob, 400, 175, 18, 0.0, 1.0, 0.0, false });
+    controls_.push_back({ PARAM_PRE_DRIVE, "PRE DRIVE", ControlType::Knob, 465, 175, 18, 0.0, 1.0, 0.0, false });
+
+    // 3. VCF SECTION (x: 525..745, y: 35..235)
+    controls_.push_back({ PARAM_CUTOFF, "CUTOFF", ControlType::Knob, 580, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_RESONANCE, "RESONANCE", ControlType::Knob, 670, 100, 20, 0.0, 1.0, 0.5, false });
+
+    controls_.push_back({ PARAM_ENV_MOD, "ENV MOD", ControlType::Knob, 580, 175, 18, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_FILTER_TYPE, "MS20/LADDER", ControlType::ToggleSwitch, 670, 175, 15, 0.0, 1.0, 0.0, true });
+
+    // 4. ENVELOPES & VCA (x: 755..965, y: 35..235)
+    controls_.push_back({ PARAM_DECAY, "DECAY", ControlType::Knob, 810, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_ACCENT, "ACCENT", ControlType::Knob, 900, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_OVERDRIVE, "TUBE DRIVE", ControlType::Knob, 855, 175, 18, 0.0, 1.0, 0.0, false });
+
+    // 5. MODULATION (x: 15..275, y: 245..465)
+    controls_.push_back({ PARAM_HARD_SYNC, "HARD SYNC", ControlType::ToggleSwitch, 60, 340, 15, 0.0, 1.0, 0.0, true });
+
+    // 6. GLOBAL & DRIFT (x: 285..515, y: 245..465)
+    controls_.push_back({ PARAM_THERMAL_DRIFT, "THERMAL", ControlType::Knob, 345, 340, 20, 0.0, 1.0, 0.1, false });
+    controls_.push_back({ PARAM_POWER_SAG, "POWER SAG", ControlType::Knob, 455, 340, 20, 0.0, 1.0, 0.1, false });
+
+    // 7. OUTPUT & MASTER (x: 525..965, y: 245..465)
+    controls_.push_back({ PARAM_MODE, "ACC/SIMP", ControlType::ToggleSwitch, 600, 340, 15, 0.0, 1.0, 0.0, true });
+    controls_.push_back({ PARAM_VOLUME, "MASTER VOL", ControlType::Knob, 860, 340, 24, 0.0, 1.0, 0.8, false });
 
     updateKnobValuesFromPlugin();
 }
@@ -61,55 +105,8 @@ void GuiWindow::updateKnobValuesFromPlugin() {
 }
 
 void GuiWindow::drawGritbaalTitle(Graphics& g, int x, int y) {
-    // S
-    g.drawRect(x, y, 22, 6, 0xFF121212);
-    g.drawRect(x, y, 6, 16, 0xFF121212);
-    g.drawRect(x, y + 15, 22, 6, 0xFF121212);
-    g.drawRect(x + 16, y + 18, 6, 17, 0xFF121212);
-    g.drawRect(x, y + 32, 22, 6, 0xFF121212);
-
-    // y
-    int yX = x + 28;
-    g.drawRect(yX, y + 12, 5, 12, 0xFF121212);
-    g.drawRect(yX + 11, y + 12, 5, 26, 0xFF121212);
-    g.drawRect(yX, y + 20, 16, 5, 0xFF121212);
-    g.drawRect(yX, y + 33, 16, 5, 0xFF121212);
-
-    // r
-    int rX = x + 54;
-    g.drawRect(rX, y + 12, 5, 26, 0xFF121212);
-    g.drawRect(rX, y + 12, 14, 5, 0xFF121212);
-    g.drawRect(rX + 12, y + 15, 5, 8, 0xFF121212);
-
-    // e
-    int eX = x + 75;
-    g.drawRect(eX, y + 12, 16, 5, 0xFF121212);
-    g.drawRect(eX, y + 12, 5, 26, 0xFF121212);
-    g.drawRect(eX, y + 22, 14, 5, 0xFF121212);
-    g.drawRect(eX, y + 33, 16, 5, 0xFF121212);
-
-    // b
-    int bX = x + 97;
-    g.drawRect(bX, y, 5, 38, 0xFF121212);
-    g.drawRect(bX, y + 18, 16, 5, 0xFF121212);
-    g.drawRect(bX + 12, y + 21, 5, 14, 0xFF121212);
-    g.drawRect(bX, y + 33, 16, 5, 0xFF121212);
-
-    // a
-    int aX = x + 119;
-    g.drawRect(aX, y + 18, 14, 5, 0xFF121212);
-    g.drawRect(aX + 11, y + 18, 5, 20, 0xFF121212);
-    g.drawRect(aX, y + 26, 14, 4, 0xFF121212);
-    g.drawRect(aX, y + 33, 14, 5, 0xFF121212);
-    g.drawRect(aX, y + 26, 4, 12, 0xFF121212);
-
-    // s
-    int s2X = x + 139;
-    g.drawRect(s2X, y + 18, 14, 4, 0xFF121212);
-    g.drawRect(s2X, y + 18, 4, 9, 0xFF121212);
-    g.drawRect(s2X, y + 25, 14, 4, 0xFF121212);
-    g.drawRect(s2X + 10, y + 27, 4, 9, 0xFF121212);
-    g.drawRect(s2X, y + 34, 14, 4, 0xFF121212);
+    // Header Title Logo text "GRITBAAL SYNTH" in glowing Amber
+    g.drawText(x, y, "GRITBAAL SYNTH", 0xFFFF8A00, font_, 2);
 }
 
 void GuiWindow::renderFrame() {
@@ -123,33 +120,28 @@ void GuiWindow::renderFrame() {
 
     Graphics g(hiResBuffer_.data(), width_, height_, 2);
 
-    // 1. Brushed silver panel background
-    g.clear(0xFFDBDFE1);
+    // 1. Render Layout (Modular Dark Iron Panels & Copper Trim)
+    if (layout_) {
+        layout_->drawLayout(g, font_);
+    } else {
+        g.clear(0xFF141517);
+    }
 
-    // Top & Bottom metallic borders / trims
-    g.drawRect(0, 0, width_, 12, 0xFFC0C4C8);
-    g.drawLine(0, 12, width_, 12, 0xFF808488, 1);
-    g.drawLine(0, 13, width_, 13, 0xFFFFFFFF, 1);
-
-    g.drawLine(0, height_ - 14, width_, height_ - 14, 0xFF808488, 1);
-    g.drawRect(0, height_ - 13, width_, 13, 0xFFC0C4C8);
-
-    // Vertical dividing line separating controls from right title panel
-    g.drawLine(530, 14, 530, height_ - 14, 0xFF181818, 2);
-
-    // 2. Draw Controls
+    // 2. Render Controls
     if (controlRenderer_) {
         for (const auto& ctrl : controls_) {
             if (ctrl.type == ControlType::Knob) {
                 controlRenderer_->drawKnob(g, ctrl, font_);
             } else if (ctrl.type == ControlType::ToggleSwitch) {
                 controlRenderer_->drawToggleSwitch(g, ctrl, font_);
+            } else if (ctrl.type == ControlType::PushButton) {
+                controlRenderer_->drawPushButton(g, ctrl, font_);
             }
         }
     }
 
-    // 3. Draw Title Logo "Gritbaal"
-    drawGritbaalTitle(g, 545, 65);
+    // 3. Header title on chassis
+    drawGritbaalTitle(g, 20, 3);
 
     // 4. Downsample hiResBuffer_ (2x2 box filter) into pixelBuffer_
     pixelBuffer_.resize(width_ * height_);
@@ -537,8 +529,8 @@ const clap_plugin_gui_t g_gritbaalGuiExtension = {
         return false;
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
-        *width = 710;
-        *height = 180;
+        *width = 980;
+        *height = 480;
         return true;
     },
     [](const clap_plugin_t* plugin) -> bool {
@@ -548,8 +540,8 @@ const clap_plugin_gui_t g_gritbaalGuiExtension = {
         return false;
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
-        *width = 710;
-        *height = 180;
+        *width = 980;
+        *height = 480;
         return true;
     },
     [](const clap_plugin_t* plugin, uint32_t width, uint32_t height) -> bool {

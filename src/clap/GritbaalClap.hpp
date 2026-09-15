@@ -18,6 +18,7 @@ struct GuiParamEvent {
 
 // Parameter IDs
 enum ParamId : clap_id {
+    // VCF & Main
     PARAM_CUTOFF = 0,
     PARAM_RESONANCE = 1,
     PARAM_ENV_MOD = 2,
@@ -26,7 +27,33 @@ enum ParamId : clap_id {
     PARAM_WAVEFORM = 5,
     PARAM_VOLUME = 6,
     PARAM_MODE = 7,
-    PARAM_COUNT = 8
+
+    // VCO Section
+    PARAM_VCO1_WAVE = 8,
+    PARAM_VCO1_PW = 9,
+    PARAM_VCO2_WAVE = 10,
+    PARAM_VCO2_PW = 11,
+    PARAM_VCO2_DETUNE = 12,
+    PARAM_FM_AMOUNT = 13,
+    PARAM_HARD_SYNC = 14,
+
+    // Mix & Drive Section
+    PARAM_VCO1_VOL = 15,
+    PARAM_VCO2_VOL = 16,
+    PARAM_RING_MOD = 17,
+    PARAM_SUB_VOL = 18,
+    PARAM_NOISE_VOL = 19,
+    PARAM_PRE_DRIVE = 20,
+    PARAM_OVERDRIVE = 21,
+
+    // VCF Type
+    PARAM_FILTER_TYPE = 22,
+
+    // Global, Drift & Sag
+    PARAM_THERMAL_DRIFT = 23,
+    PARAM_POWER_SAG = 24,
+
+    PARAM_COUNT = 25
 };
 
 enum MidiParamId : clap_id {
