@@ -4,6 +4,7 @@
 #include "Oscillator.hpp"
 #include "Envelope.hpp"
 #include "Filter.hpp"
+#include "Lfo.hpp"
 
 namespace gritbaal {
 
@@ -17,11 +18,26 @@ struct SynthParameters {
     float cutoff{0.5f};        // Knob range 0.0 to 1.0
     float resonance{0.5f};     // Knob range 0.0 to 1.0
     float envMod{0.5f};        // Knob range 0.0 to 1.0
-    float decay{0.5f};         // Knob range 0.0 to 1.0
-    float accent{0.5f};        // Knob range 0.0 to 1.0
     Waveform waveform{Waveform::Saw};
     float masterVolume{0.8f};
     EmulationMode mode{EmulationMode::Accurate};
+
+    // Dual ADSR Envelopes (ENV1 = VCF, ENV2 = AMP)
+    float env1Attack{0.01f};   // 1ms to 3s
+    float env1Decay{0.3f};    // 1ms to 5s
+    float env1Sustain{0.4f};  // 0.0 to 1.0
+    float env1Release{0.3f};  // 1ms to 5s
+
+    float env2Attack{0.01f};   // 1ms to 3s
+    float env2Decay{0.3f};    // 1ms to 5s
+    float env2Sustain{0.7f};  // 0.0 to 1.0
+    float env2Release{0.3f};  // 1ms to 5s
+
+    // Dual LFOs
+    float lfo1Rate{1.0f};      // 0.05 Hz to 30 Hz
+    float lfo1Depth{0.0f};     // LFO1 -> Cutoff Modulation
+    float lfo2Rate{2.0f};      // 0.05 Hz to 30 Hz
+    float lfo2Depth{0.0f};     // LFO2 -> Pulse Width Modulation
 
     // Extended Core DSP Parameters
     Waveform vco2Waveform{Waveform::Saw};
@@ -34,11 +50,12 @@ struct SynthParameters {
     float vco2Level{0.0f};
     float subLevel{0.0f};
     float noiseLevel{0.0f};
-    NoiseType noiseType{NoiseType::White};
+    NoiseType noiseType{NoiseType::Crackle};
 
     FilterType filterType{FilterType::TransistorLadder};
     float preFilterDrive{1.0f};  // 1.0 to 5.0
     float overdriveAmount{0.0f}; // 0.0 to 1.0 post-filter tube/diode distortion
+    float warmthAmount{0.0f};    // 0.0 to 1.0 even-harmonic analog warmth
     float powerSagAmount{0.0f};  // 0.0 to 1.0 dynamic rail voltage sag
     float thermalDrift{0.1f};    // Thermal walk scaling
 };
@@ -62,26 +79,33 @@ public:
     Oscillator& getOscillator() { return osc_; }
     Filter& getFilter() { return filter_; }
 
+    // Modulated Realtime Values for UI double-arc rendering
+    float getEffectiveCutoffNorm() const { return effectiveCutoffNorm_; }
+    float getEffectivePw1Norm() const { return effectivePw1Norm_; }
+    float getEffectivePw2Norm() const { return effectivePw2Norm_; }
+
 private:
     double sampleRate_{44100.0};
     SynthParameters params_;
 
     Oscillator osc_;
-    Envelope env_;
+    Envelope env1_; // VCF Envelope
+    Envelope env2_; // AMP Envelope
     Filter filter_;
+    Lfo lfo1_;      // Cutoff LFO
+    Lfo lfo2_;      // Pulse Width LFO
 
     int currentNote_{-1};
     bool isNoteActive_{false};
-    float accentLevel_{0.0f};
+
+    // Effective modulated parameter values for UI feedback
+    float effectiveCutoffNorm_{0.5f};
+    float effectivePw1Norm_{0.5f};
+    float effectivePw2Norm_{0.5f};
 
     // Power Supply Rail Sag Simulation State
     float railVoltage_{1.0f};
     float powerSagLpf_{0.0f};
-
-    // Smooth VCA Gate Envelope to prevent Note On / Off clicks
-    float vcaGateEnv_{0.0f};
-    float vcaAttackCoeff_{0.0f};
-    float vcaReleaseCoeff_{0.0f};
 };
 
 } // namespace gritbaal
