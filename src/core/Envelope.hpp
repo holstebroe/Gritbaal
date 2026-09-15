@@ -1,6 +1,9 @@
 #ifndef GRITBAAL_ENVELOPE_HPP
 #define GRITBAAL_ENVELOPE_HPP
 
+#include <cmath>
+#include <algorithm>
+
 namespace gritbaal {
 
 class Envelope {
@@ -9,46 +12,44 @@ public:
     ~Envelope() = default;
 
     void setSampleRate(double sampleRate);
-    void setDecay(float decayParam); // 0.0 to 1.0 -> 200ms to 2.5s
 
-    void noteOn(bool isAccent, bool isSlide, float accentKnob = 1.0f);
+    // Full ADSR setters (times in seconds)
+    void setAttack(float attackSec);
+    void setDecay(float decaySec);
+    void setSustain(float sustainLevel); // 0.0 to 1.0
+    void setRelease(float releaseSec);
+
+    void noteOn();
     void noteOff();
 
     void processNextSample();
 
-    float getVcfEnv() const { return vcfEnv_; }
-    float getVcaEnv() const { return vcaEnv_; }
-    float getAccentCap() const { return accentCap_; }
-    float getAccentVca() const { return accentVca_; }
-    bool isAccent() const { return isAccent_; }
-    bool isActive() const { return gate_ || (vcaEnv_ > 0.0001f) || (vcfEnv_ > 0.0001f); }
+    float getValue() const { return currentVal_; }
+    bool isActive() const { return gate_ || (currentVal_ > 0.0001f); }
 
 private:
     double sampleRate_{44100.0};
 
     bool gate_{false};
-    bool isAccent_{false};
+    float attackSec_{0.01f};
+    float decaySec_{0.2f};
+    float sustainLevel_{0.5f};
+    float releaseSec_{0.3f};
 
-    float vcfDecayTimeSec_{0.20f};
-    float vcfAttackCoeff_{0.0f};
-    float vcfDecayCoeff_{0.0f};
+    enum class State {
+        Idle,
+        Attack,
+        Decay,
+        Sustain,
+        Release
+    };
 
-    float vcaAttackCoeff_{0.0f};
-    float vcaGateHighDecayCoeff_{0.0f};
-    float vcaQuickDrainCoeff_{0.0f};
+    State state_{State::Idle};
+    float currentVal_{0.0f};
 
-    float accentChargeCoeff_{0.0f};
-    float accentDischargeCoeff_{0.0f};
-    float accentVcaCoeff_{0.0f};
-
-    float vcfEnv_{0.0f};
-    float vcfTarget_{0.0f};
-
-    float vcaEnv_{0.0f};
-    float vcaTarget_{0.0f};
-
-    float accentCap_{0.0f};
-    float accentVca_{0.0f};
+    float attackCoeff_{0.0f};
+    float decayCoeff_{0.0f};
+    float releaseCoeff_{0.0f};
 
     void updateCoefficients();
 };

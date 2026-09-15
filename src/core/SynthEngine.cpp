@@ -11,25 +11,26 @@ SynthEngine::SynthEngine() {
 void SynthEngine::setSampleRate(double sampleRate) {
     sampleRate_ = sampleRate;
     osc_.setSampleRate(sampleRate_);
-    env_.setSampleRate(sampleRate_);
+    env1_.setSampleRate(sampleRate_);
+    env2_.setSampleRate(sampleRate_);
     filter_.setSampleRate(sampleRate_);
+    lfo1_.setSampleRate(sampleRate_);
+    lfo2_.setSampleRate(sampleRate_);
 }
 
 void SynthEngine::reset() {
     filter_.reset();
     osc_.resetFilterStates();
+    lfo1_.reset();
+    lfo2_.reset();
     currentNote_ = -1;
     isNoteActive_ = false;
-    accentLevel_ = 0.0f;
     railVoltage_ = 1.0f;
     powerSagLpf_ = 0.0f;
 }
 
 void SynthEngine::noteOn(int noteNumber, float velocity) {
     bool isSlide = isNoteActive_;
-    bool isAccent = (velocity >= 0.8f);
-    accentLevel_ = isAccent ? 1.0f : 0.0f;
-
     currentNote_ = noteNumber;
     isNoteActive_ = true;
 
@@ -48,23 +49,33 @@ void SynthEngine::noteOn(int noteNumber, float velocity) {
     osc_.setThermalDriftAmount(params_.thermalDrift);
 
     osc_.noteOn(noteNumber, isSlide);
-    env_.setDecay(params_.decay);
-    env_.noteOn(isAccent, isSlide, params_.accent);
+
+    env1_.setAttack(params_.env1Attack);
+    env1_.setDecay(params_.env1Decay);
+    env1_.setSustain(params_.env1Sustain);
+    env1_.setRelease(params_.env1Release);
+
+    env2_.setAttack(params_.env2Attack);
+    env2_.setDecay(params_.env2Decay);
+    env2_.setSustain(params_.env2Sustain);
+    env2_.setRelease(params_.env2Release);
+
+    env1_.noteOn();
+    env2_.noteOn();
 }
 
 void SynthEngine::noteOff(int noteNumber) {
     if (noteNumber == currentNote_ || noteNumber < 0) {
         isNoteActive_ = false;
         osc_.noteOff();
-        env_.noteOff();
+        env1_.noteOff();
+        env2_.noteOff();
     }
 }
 
 void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     osc_.setVco1Waveform(params_.waveform);
     osc_.setVco2Waveform(params_.vco2Waveform);
-    osc_.setVco1PulseWidth(params_.vco1PulseWidth);
-    osc_.setVco2PulseWidth(params_.vco2PulseWidth);
     osc_.setVco2DetuneSemitones(params_.vco2Detune);
     osc_.setFmAmount(params_.fmAmount);
     osc_.setHardSync(params_.hardSync);
@@ -77,30 +88,52 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
 
     filter_.setFilterType(params_.filterType);
     filter_.setPreDrive(params_.preFilterDrive);
-    env_.setDecay(params_.decay);
+
+    env1_.setAttack(params_.env1Attack);
+    env1_.setDecay(params_.env1Decay);
+    env1_.setSustain(params_.env1Sustain);
+    env1_.setRelease(params_.env1Release);
+
+    env2_.setAttack(params_.env2Attack);
+    env2_.setDecay(params_.env2Decay);
+    env2_.setSustain(params_.env2Sustain);
+    env2_.setRelease(params_.env2Release);
+
+    lfo1_.setRate(params_.lfo1Rate);
+    lfo1_.setDepth(params_.lfo1Depth);
+    lfo2_.setRate(params_.lfo2Rate);
+    lfo2_.setDepth(params_.lfo2Depth);
 
     for (int i = 0; i < numFrames; ++i) {
-        if (!env_.isActive() && !isNoteActive_) {
+        if (!env2_.isActive() && !isNoteActive_) {
             if (outLeft) outLeft[i] = 0.0f;
             if (outRight) outRight[i] = 0.0f;
             continue;
         }
 
-        // 1. Generate oscillator signal
+        // 1. Process LFOs
+        float lfo1Val = lfo1_.processNextSample(); // -lfo1Depth .. +lfo1Depth (Modulates Cutoff)
+        float lfo2Val = lfo2_.processNextSample(); // -lfo2Depth .. +lfo2Depth (Modulates Pulse Width)
+
+        // Apply LFO2 pulse width modulation
+        float modulatedPw1 = std::clamp(params_.vco1PulseWidth + lfo2Val * 0.4f, 0.05f, 0.95f);
+        float modulatedPw2 = std::clamp(params_.vco2PulseWidth + lfo2Val * 0.4f, 0.05f, 0.95f);
+        osc_.setVco1PulseWidth(modulatedPw1);
+        osc_.setVco2PulseWidth(modulatedPw2);
+
+        // 2. Generate oscillator signal
         float rawOsc = osc_.processNextSample();
 
-        // 2. Process envelope sample
-        env_.processNextSample();
-        float vcfEnvVal = env_.getVcfEnv();
-        float vcaEnvVal = env_.getVcaEnv();
-        float accentCapVal = env_.getAccentCap();
-        float accentVcaVal = env_.getAccentVca();
-        bool noteAccent = env_.isAccent();
+        // 3. Process envelopes
+        env1_.processNextSample();
+        env2_.processNextSample();
 
-        float cNorm = std::min(std::max(params_.cutoff, 0.0f), 1.0f);
-        float resNorm = std::min(std::max(params_.resonance, 0.0f), 1.0f);
-        float envModNorm = std::min(std::max(params_.envMod, 0.0f), 1.0f);
-        float accentNorm = std::min(std::max(params_.accent, 0.0f), 1.0f);
+        float vcfEnvVal = env1_.getValue();
+        float vcaEnvVal = env2_.getValue();
+
+        float cNorm = std::clamp(params_.cutoff + lfo1Val, 0.0f, 1.0f);
+        float resNorm = std::clamp(params_.resonance, 0.0f, 1.0f);
+        float envModNorm = std::clamp(params_.envMod, 0.0f, 1.0f);
 
         // Power Supply Rail Sag: dynamic voltage drop under heavy low-frequency load
         float load = std::abs(rawOsc) * vcaEnvVal;
@@ -111,87 +144,31 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float filterOut = 0.0f;
         float vcaSignal = 0.0f;
 
+        // Exponential mapping for cutoff
+        float cTaper = cNorm * cNorm;
+        float cv_base = 3.64385f * cTaper;
+        float cv_envmod = envModNorm * vcfEnvVal * 4.0f;
+        float cv_total = cv_base + cv_envmod;
+
+        float effectiveCutoff = 150.0f * std::pow(2.0f, cv_total) * (1.0f - (0.15f * resNorm));
+        effectiveCutoff *= railVoltage_;
+        float totalCutoff = std::clamp(effectiveCutoff, 20.0f, 16000.0f);
+
         if (params_.mode == EmulationMode::Accurate) {
-            // --- ACCURATE MODE: Current-Domain Control Summing & Filter Processing ---
-            float cTaper = cNorm * cNorm;
-            float envModTaper = envModNorm * envModNorm;
-
-            float cv_base = 3.64385f * cTaper;
-            float cv_offset = envModTaper * 0.80735f;
-
-            float effectiveEnvMod = noteAccent ? (envModNorm + (1.0f - envModNorm) * accentNorm) : envModNorm;
-            float effectiveEnvModTaper = effectiveEnvMod * effectiveEnvMod;
-            float cv_envmod = effectiveEnvModTaper * vcfEnvVal * 3.5f;
-
-            float directAccentPortion = (1.0f - resNorm * 0.7f) * vcfEnvVal;
-            float sweepCapPortion = (resNorm * 0.7f) * accentCapVal;
-            float accentSweepSignal = directAccentPortion + sweepCapPortion;
-
-            float cv_accent = noteAccent ? (accentNorm * accentSweepSignal * 1.5f) : (accentNorm * sweepCapPortion * 0.75f);
-
-            float cv_total = cv_base + cv_offset + cv_envmod + cv_accent;
-
-            float effectiveCutoff = 200.0f * std::pow(2.0f, cv_total) * (1.0f - (0.15f * resNorm));
-            // Power sag slightly lowers filter cutoff ceiling
-            effectiveCutoff *= railVoltage_;
-            float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), 15000.0f);
-
             filterOut = filter_.processAccurateSample(rawOsc, totalCutoff, resNorm);
-
-            float vcaGain = vcaEnvVal;
-            if (noteAccent) {
-                vcaGain += accentVcaVal * accentNorm * 0.8f;
-            }
-
-            float xVal = filterOut * vcaGain;
-            if (xVal > 0.0f) {
-                vcaSignal = std::tanh(xVal * 1.1f);
-            } else {
-                vcaSignal = std::tanh(xVal * 0.9f);
-            }
         } else {
-            // --- SIMPLIFIED MODE ---
-            float cTaper = cNorm * cNorm;
-            float envModTaper = envModNorm * envModNorm;
-
-            float cv_base = 3.64385f * cTaper;
-            float cv_offset = envModTaper * 0.80735f;
-
-            float effectiveEnvMod = noteAccent ? (envModNorm + (1.0f - envModNorm) * accentNorm) : envModNorm;
-            float effectiveEnvModTaper = effectiveEnvMod * effectiveEnvMod;
-            float cv_envmod = effectiveEnvModTaper * vcfEnvVal * 3.5f;
-
-            float directAccentPortion = (1.0f - resNorm * 0.7f) * vcfEnvVal;
-            float sweepCapPortion = (resNorm * 0.7f) * accentCapVal;
-            float accentSweepSignal = directAccentPortion + sweepCapPortion;
-
-            float cv_accent = noteAccent ? (accentNorm * accentSweepSignal * 1.5f) : (accentNorm * sweepCapPortion * 0.75f);
-            float cv_total = cv_base + cv_offset + cv_envmod + cv_accent;
-
-            float effectiveCutoff = 200.0f * std::pow(2.0f, cv_total) * (1.0f - (0.15f * resNorm));
-            effectiveCutoff *= railVoltage_;
-            float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), 14000.0f);
-
             filterOut = filter_.processSample(rawOsc, totalCutoff, resNorm);
-
-            float vcaGain = vcaEnvVal;
-            if (noteAccent && accentVcaVal > 0.0001f) {
-                vcaGain += accentVcaVal * accentNorm * 0.8f;
-            }
-
-            vcaSignal = filterOut * vcaGain;
-            if (noteAccent && accentNorm > 0.01f) {
-                float satDrive = 1.0f + accentNorm * 0.25f;
-                if (vcaSignal > 0.0f) {
-                    vcaSignal = std::tanh(vcaSignal * satDrive);
-                } else {
-                    vcaSignal = std::tanh(vcaSignal * (satDrive * 0.85f));
-                }
-            }
         }
 
-        // Post-Filter Tube / Diode Overdrive Waveshaper (Section 5.3)
-        // y = tanh(x + 0.15 * x^2)
+        vcaSignal = filterOut * vcaEnvVal;
+
+        // Warmth Saturation (Even-harmonic tube warmth): y = x + warmth * (x^2 * 0.25)
+        if (params_.warmthAmount > 0.001f) {
+            float w = params_.warmthAmount;
+            vcaSignal = vcaSignal + w * 0.35f * (vcaSignal * vcaSignal);
+        }
+
+        // Post-Filter Tube / Diode Overdrive Waveshaper: y = tanh(x + 0.15 * x^2)
         if (params_.overdriveAmount > 0.001f) {
             float driveScale = 1.0f + params_.overdriveAmount * 3.0f;
             float xDriven = vcaSignal * driveScale;

@@ -21,23 +21,31 @@
 
 namespace gritbaal {
 
+static const char* kFactoryPresetNames[] = {
+    "01: Hellfire Bass",
+    "02: Screaming Acid",
+    "03: Dark Energy Lead",
+    "04: Industrial Pad"
+};
+static const int kNumFactoryPresets = 4;
+
 GuiWindow::GuiWindow(GritbaalClap* plugin)
     : plugin_(plugin), controlRenderer_(std::make_unique<IndustrialGritbaalRenderer>()),
       width_(980), height_(480) {
     pixelBuffer_.resize(width_ * height_, 0xFF141517);
 
-    // Initialize Panel Layout Engine according to Section 2 of docs/design_document.md
+    // Initialize Panel Layout Engine matching Section 2 of docs/design_document.md
     layout_ = std::make_unique<PanelLayout>(width_, height_);
     // Top Row Panels (y: 35, height: 200)
     layout_->addPanel("VCO SECTION", 15, 35, 260, 200);
     layout_->addPanel("MIX & DRIVE", 285, 35, 230, 200);
     layout_->addPanel("VCF SECTION", 525, 35, 220, 200);
-    layout_->addPanel("ENVELOPES & VCA", 755, 35, 210, 200);
+    layout_->addPanel("GLOBAL & DRIFT", 755, 35, 210, 200);
 
     // Bottom Row Panels (y: 245, height: 220)
-    layout_->addPanel("MODULATION", 15, 245, 260, 220);
-    layout_->addPanel("GLOBAL & DRIFT", 285, 245, 230, 220);
-    layout_->addPanel("OUTPUT & MASTER", 525, 245, 440, 220);
+    layout_->addPanel("MODULATION & LFO", 15, 245, 260, 220);
+    layout_->addPanel("ENVELOPES (ENV1 / ENV2)", 285, 245, 470, 220);
+    layout_->addPanel("OUTPUT & MASTER", 765, 245, 200, 220);
 
     initControls();
 }
@@ -64,7 +72,7 @@ void GuiWindow::initControls() {
     controls_.push_back({ PARAM_RING_MOD, "RING MOD", ControlType::Knob, 465, 100, 18, 0.0, 1.0, 0.0, false });
 
     controls_.push_back({ PARAM_SUB_VOL, "SUB VOL", ControlType::Knob, 335, 175, 18, 0.0, 1.0, 0.0, false });
-    controls_.push_back({ PARAM_NOISE_VOL, "NOISE", ControlType::Knob, 400, 175, 18, 0.0, 1.0, 0.0, false });
+    controls_.push_back({ PARAM_NOISE_VOL, "CRACKLE", ControlType::Knob, 400, 175, 18, 0.0, 1.0, 0.0, false });
     controls_.push_back({ PARAM_PRE_DRIVE, "PRE DRIVE", ControlType::Knob, 465, 175, 18, 0.0, 1.0, 0.0, false });
 
     // 3. VCF SECTION (x: 525..745, y: 35..235)
@@ -74,21 +82,38 @@ void GuiWindow::initControls() {
     controls_.push_back({ PARAM_ENV_MOD, "ENV MOD", ControlType::Knob, 580, 175, 18, 0.0, 1.0, 0.5, false });
     controls_.push_back({ PARAM_FILTER_TYPE, "MS20/LADDER", ControlType::ToggleSwitch, 670, 175, 15, 0.0, 1.0, 0.0, true });
 
-    // 4. ENVELOPES & VCA (x: 755..965, y: 35..235)
-    controls_.push_back({ PARAM_DECAY, "DECAY", ControlType::Knob, 810, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_ACCENT, "ACCENT", ControlType::Knob, 900, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_OVERDRIVE, "TUBE DRIVE", ControlType::Knob, 855, 175, 18, 0.0, 1.0, 0.0, false });
+    // 4. GLOBAL & DRIFT (x: 755..965, y: 35..235)
+    controls_.push_back({ PARAM_OVERDRIVE, "TUBE DRIVE", ControlType::Knob, 810, 100, 18, 0.0, 1.0, 0.0, false });
+    controls_.push_back({ PARAM_THERMAL_DRIFT, "THERMAL", ControlType::Knob, 900, 100, 18, 0.0, 1.0, 0.1, false });
+    controls_.push_back({ PARAM_POWER_SAG, "POWER SAG", ControlType::Knob, 855, 175, 18, 0.0, 1.0, 0.1, false });
 
-    // 5. MODULATION (x: 15..275, y: 245..465)
-    controls_.push_back({ PARAM_HARD_SYNC, "HARD SYNC", ControlType::ToggleSwitch, 60, 340, 15, 0.0, 1.0, 0.0, true });
+    // 5. MODULATION & LFO (x: 15..275, y: 245..465)
+    controls_.push_back({ PARAM_HARD_SYNC, "HARD SYNC", ControlType::ToggleSwitch, 60, 310, 15, 0.0, 1.0, 0.0, true });
+    controls_.push_back({ PARAM_LFO1_RATE, "LFO1 RATE", ControlType::Knob, 135, 310, 18, 0.0, 1.0, 0.1, false });
+    controls_.push_back({ PARAM_LFO1_DEPTH, "LFO1 CUTOFF", ControlType::Knob, 210, 310, 18, 0.0, 1.0, 0.0, false });
 
-    // 6. GLOBAL & DRIFT (x: 285..515, y: 245..465)
-    controls_.push_back({ PARAM_THERMAL_DRIFT, "THERMAL", ControlType::Knob, 345, 340, 20, 0.0, 1.0, 0.1, false });
-    controls_.push_back({ PARAM_POWER_SAG, "POWER SAG", ControlType::Knob, 455, 340, 20, 0.0, 1.0, 0.1, false });
+    controls_.push_back({ PARAM_LFO2_RATE, "LFO2 RATE", ControlType::Knob, 135, 390, 18, 0.0, 1.0, 0.1, false });
+    controls_.push_back({ PARAM_LFO2_DEPTH, "LFO2 PW", ControlType::Knob, 210, 390, 18, 0.0, 1.0, 0.0, false });
 
-    // 7. OUTPUT & MASTER (x: 525..965, y: 245..465)
-    controls_.push_back({ PARAM_MODE, "ACC/SIMP", ControlType::ToggleSwitch, 600, 340, 15, 0.0, 1.0, 0.0, true });
-    controls_.push_back({ PARAM_VOLUME, "MASTER VOL", ControlType::Knob, 860, 340, 24, 0.0, 1.0, 0.8, false });
+    // 6. ENVELOPES (ENV1 Filter & ENV2 Amp) (x: 285..755, y: 245..465)
+    // ENV1 (FILTER)
+    controls_.push_back({ PARAM_ENV1_A, "ENV1 ATK", ControlType::Knob, 335, 310, 18, 0.0, 1.0, 0.01, false });
+    controls_.push_back({ PARAM_ENV1_D, "ENV1 DEC", ControlType::Knob, 400, 310, 18, 0.0, 1.0, 0.3, false });
+    controls_.push_back({ PARAM_ENV1_S, "ENV1 SUS", ControlType::Knob, 465, 310, 18, 0.0, 1.0, 0.4, false });
+    controls_.push_back({ PARAM_ENV1_R, "ENV1 REL", ControlType::Knob, 530, 310, 18, 0.0, 1.0, 0.3, false });
+
+    // ENV2 (AMP)
+    controls_.push_back({ PARAM_ENV2_A, "ENV2 ATK", ControlType::Knob, 335, 390, 18, 0.0, 1.0, 0.01, false });
+    controls_.push_back({ PARAM_ENV2_D, "ENV2 DEC", ControlType::Knob, 400, 390, 18, 0.0, 1.0, 0.3, false });
+    controls_.push_back({ PARAM_ENV2_S, "ENV2 SUS", ControlType::Knob, 465, 390, 18, 0.0, 1.0, 0.7, false });
+    controls_.push_back({ PARAM_ENV2_R, "ENV2 REL", ControlType::Knob, 530, 390, 18, 0.0, 1.0, 0.3, false });
+
+    // Output Warmth
+    controls_.push_back({ PARAM_WARMTH, "WARMTH", ControlType::Knob, 640, 350, 20, 0.0, 1.0, 0.0, false });
+
+    // 7. OUTPUT & MASTER (x: 765..965, y: 245..465)
+    controls_.push_back({ PARAM_MODE, "ACC/SIMP", ControlType::ToggleSwitch, 810, 330, 15, 0.0, 1.0, 0.0, true });
+    controls_.push_back({ PARAM_VOLUME, "MASTER VOL", ControlType::Knob, 895, 350, 24, 0.0, 1.0, 0.8, false });
 
     updateKnobValuesFromPlugin();
 }
@@ -107,6 +132,31 @@ void GuiWindow::updateKnobValuesFromPlugin() {
 void GuiWindow::drawGritbaalTitle(Graphics& g, int x, int y) {
     // Header Title Logo text "GRITBAAL SYNTH" in glowing Amber
     g.drawText(x, y, "GRITBAAL SYNTH", 0xFFFF8A00, font_, 2);
+
+    // Render Header Preset Control Mockup: PRESETS: [<] [ 01: Hellfire Bass ] [>] [SAVE]
+    int presetX = 270;
+    g.drawText(presetX, y + 2, "PRESETS:", 0xFFD89A40, font_, 1);
+
+    // [<] button
+    g.drawRect(presetX + 70, y, 16, 14, 0xFF101214);
+    g.drawRectOutline(presetX + 70, y, 16, 14, 0xFF8C5224, 1);
+    g.drawText(presetX + 75, y + 3, "<", 0xFFFF8A00, font_, 1);
+
+    // Preset Display Box
+    g.drawRect(presetX + 90, y, 170, 14, 0xFF0E1012);
+    g.drawRectOutline(presetX + 90, y, 170, 14, 0xFF8C5224, 1);
+    const char* presetName = kFactoryPresetNames[currentPresetIndex_ % kNumFactoryPresets];
+    g.drawText(presetX + 95, y + 3, presetName, 0xFFFFCC00, font_, 1);
+
+    // [>] button
+    g.drawRect(presetX + 264, y, 16, 14, 0xFF101214);
+    g.drawRectOutline(presetX + 264, y, 16, 14, 0xFF8C5224, 1);
+    g.drawText(presetX + 269, y + 3, ">", 0xFFFF8A00, font_, 1);
+
+    // [SAVE] button
+    g.drawRect(presetX + 284, y, 40, 14, 0xFF101214);
+    g.drawRectOutline(presetX + 284, y, 40, 14, 0xFF8C5224, 1);
+    g.drawText(presetX + 291, y + 3, "SAVE", 0xFFD89A40, font_, 1);
 }
 
 void GuiWindow::renderFrame() {
@@ -171,6 +221,24 @@ void GuiWindow::renderFrame() {
 
 void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
     lastShiftState_ = isShift;
+
+    // Check click on Preset Header [<] and [>] buttons
+    if (y >= 0 && y <= 20) {
+        int presetX = 270;
+        if (x >= presetX + 70 && x <= presetX + 86) {
+            // [<] clicked
+            currentPresetIndex_ = (currentPresetIndex_ + kNumFactoryPresets - 1) % kNumFactoryPresets;
+            renderFrame();
+            return;
+        }
+        if (x >= presetX + 264 && x <= presetX + 280) {
+            // [>] clicked
+            currentPresetIndex_ = (currentPresetIndex_ + 1) % kNumFactoryPresets;
+            renderFrame();
+            return;
+        }
+    }
+
     for (size_t i = 0; i < controls_.size(); ++i) {
         auto& ctrl = controls_[i];
         if (ctrl.type == ControlType::Knob) {

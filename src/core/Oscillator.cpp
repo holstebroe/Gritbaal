@@ -44,6 +44,7 @@ void Oscillator::resetFilterStates() {
     hpfSqX1_ = 0.0;
     hpfSqY1_ = 0.0;
     pinkB0_ = pinkB1_ = pinkB2_ = pinkB3_ = pinkB4_ = pinkB5_ = pinkB6_ = 0.0;
+    crackleState_ = 0.0;
     triState1_ = 0.0;
     triState2_ = 0.0;
 }
@@ -95,11 +96,23 @@ double Oscillator::generatePolyBlepWave(double phase, double phaseInc, Waveform 
 }
 
 double Oscillator::generateNoiseSample() {
-    double white = gaussianDist_(rng_) * 0.3;
     if (noiseType_ == NoiseType::White) {
-        return white;
+        return gaussianDist_(rng_) * 0.3;
+    } else if (noiseType_ == NoiseType::Crackle) {
+        // Poisson micro-spike crackle noise with low-frequency rumble state
+        double spike = 0.0;
+        // Poisson process with low rate (~1200 spikes per second)
+        double spikeProb = 1200.0 / sampleRate_;
+        if (uniformDist_(rng_) < spikeProb) {
+            double amplitude = (uniformDist_(rng_) > 0.5 ? 1.0 : -1.0) * (0.4 + 0.6 * uniformDist_(rng_));
+            spike = amplitude;
+        }
+        // Rapid decaying impulse response for crackle micro-spikes + dark low rumble
+        crackleState_ = crackleState_ * 0.95 + spike;
+        return crackleState_;
     } else {
         // Paul Kellett's refined 3 dB/octave pinking filter
+        double white = gaussianDist_(rng_) * 0.3;
         pinkB0_ = 0.99886 * pinkB0_ + white * 0.0555179;
         pinkB1_ = 0.99332 * pinkB1_ + white * 0.0750759;
         pinkB2_ = 0.96900 * pinkB2_ + white * 0.1538520;
@@ -108,7 +121,7 @@ double Oscillator::generateNoiseSample() {
         pinkB5_ = -0.7616 * pinkB5_ - white * 0.0168980;
         double pink = pinkB0_ + pinkB1_ + pinkB2_ + pinkB3_ + pinkB4_ + pinkB5_ + pinkB6_ + white * 0.5362;
         pinkB6_ = white * 0.115926;
-        return pink * 0.12; // Normalize pink noise gain
+        return pink * 0.12;
     }
 }
 

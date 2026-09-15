@@ -9,14 +9,15 @@ namespace gritbaal {
 
 enum class Waveform {
     Saw = 0,
-    Square = 1, // Backward compatibility alias for Pulse
+    Square = 1, // Alias for Pulse
     Pulse = 1,
     Triangle = 2
 };
 
 enum class NoiseType {
     White = 0,
-    Pink = 1
+    Pink = 1,
+    Crackle = 2
 };
 
 class Oscillator {
@@ -69,7 +70,7 @@ private:
     double vco2Level_{0.0};
     double subLevel_{0.0};
     double noiseLevel_{0.0};
-    NoiseType noiseType_{NoiseType::White};
+    NoiseType noiseType_{NoiseType::Crackle};
     double thermalDrift_{0.1}; // Thermal pitch walk scaling
     double mismatchCents_{0.0};
 
@@ -90,6 +91,10 @@ private:
     double thermalWalk2_{0.0};
     std::mt19937 rng_{1337};
     std::normal_distribution<double> gaussianDist_{0.0, 1.0};
+    std::uniform_real_distribution<double> uniformDist_{0.0, 1.0};
+
+    // Crackle Noise Filter State
+    double crackleState_{0.0};
 
     // Pink Noise Filter States (Paul Kellet 3-pole/7-pole filter)
     double pinkB0_{0.0};

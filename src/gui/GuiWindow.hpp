@@ -73,6 +73,7 @@ private:
     std::vector<uint32_t> hiResBuffer_; // 2x supersampled buffer
     std::vector<Control> controls_;
     bool lastShiftState_{false};
+    int currentPresetIndex_{0};
 
     Font font_{Font::default5x7()};
     std::unique_ptr<IControlRenderer> controlRenderer_;

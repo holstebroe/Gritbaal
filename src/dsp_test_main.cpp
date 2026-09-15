@@ -53,8 +53,6 @@ static float runTestForMode(gritbaal::EmulationMode mode, const std::string& wav
     params.cutoff = 0.4f;
     params.resonance = 0.85f;
     params.envMod = 0.8f;
-    params.decay = 0.5f;
-    params.accent = 0.9f;
     params.waveform = gritbaal::Waveform::Saw;
     params.masterVolume = 0.8f;
 
@@ -73,13 +71,13 @@ static float runTestForMode(gritbaal::EmulationMode mode, const std::string& wav
 
     std::vector<Event> events = {
         { 0, true, 36, 0.5f },                 // C2 normal
-        { sampleRate / 4, true, 36, 1.0f },    // C2 Accent 1
-        { sampleRate / 2, true, 36, 1.0f },    // C2 Accent 2
-        { 3 * sampleRate / 4, true, 36, 1.0f },// C2 Accent 3
-        { sampleRate, true, 48, 1.0f },       // C3 slide + accent
+        { sampleRate / 4, true, 36, 1.0f },    // C2 Note On
+        { sampleRate / 2, true, 36, 1.0f },    // C2 Note On
+        { 3 * sampleRate / 4, true, 36, 1.0f },// C2 Note On
+        { sampleRate, true, 48, 1.0f },       // C3
         { 5 * sampleRate / 4, false, 48, 0.0f },// Note off
         { 3 * sampleRate / 2, true, 43, 0.5f },// G2 normal
-        { 7 * sampleRate / 4, true, 36, 0.5f },// C2 slide
+        { 7 * sampleRate / 4, true, 36, 0.5f },// C2
         { sampleRate * 2, false, 36, 0.0f }
     };
 
@@ -145,14 +143,19 @@ static void testPhase2ExtendedDsp() {
     params.hardSync = true;
     params.subLevel = 0.4f;
     params.noiseLevel = 0.2f;
-    params.noiseType = gritbaal::NoiseType::Pink;
+    params.noiseType = gritbaal::NoiseType::Crackle;
+    params.warmthAmount = 0.5f;
+    params.lfo1Rate = 2.0f;
+    params.lfo1Depth = 0.3f;
+    params.lfo2Rate = 3.0f;
+    params.lfo2Depth = 0.2f;
     params.filterType = gritbaal::FilterType::SallenKey; // MS-20 style
     params.preFilterDrive = 2.5f;
     params.overdriveAmount = 0.5f;
     params.powerSagAmount = 0.4f;
     params.thermalDrift = 0.2f;
 
-    engine.noteOn(36, 0.9f); // Note On C2 with Accent
+    engine.noteOn(36, 0.9f); // Note On C2
 
     std::vector<float> left(512);
     std::vector<float> right(512);
