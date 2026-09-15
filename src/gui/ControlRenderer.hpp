@@ -12,6 +12,19 @@ public:
 
     void drawKnob(Graphics& g, const Control& ctrl, const Font& font) override;
     void drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) override;
+    void drawPushButton(Graphics& g, const Control& ctrl, const Font& font) override;
+    void drawLedIndicator(Graphics& g, int cx, int cy, bool state, uint32_t activeColor = 0xFFFF3300) override;
+};
+
+class IndustrialGritbaalRenderer : public IControlRenderer {
+public:
+    IndustrialGritbaalRenderer() = default;
+    ~IndustrialGritbaalRenderer() override = default;
+
+    void drawKnob(Graphics& g, const Control& ctrl, const Font& font) override;
+    void drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) override;
+    void drawPushButton(Graphics& g, const Control& ctrl, const Font& font) override;
+    void drawLedIndicator(Graphics& g, int cx, int cy, bool state, uint32_t activeColor = 0xFFFF3300) override;
 };
 
 } // namespace gritbaal

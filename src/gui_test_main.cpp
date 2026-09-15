@@ -54,10 +54,10 @@ int main() {
     mockOutList.try_push = TestOutEvents::tryPush;
 
     // Test mouse interaction and Shift fine tuning
-    // Cutoff Knob is at x=55, y=100 (minVal=0.0, maxVal=1.0)
+    // Cutoff Knob is at x=60, y=95 (minVal=0.0, maxVal=1.0)
     // 1. Standard mouse drag test (isShift = false)
-    gui.handleMouseDown(55, 100, false);
-    gui.handleMouseDrag(55, 20, false); // Drag up 80 pixels
+    gui.handleMouseDown(60, 95, false);
+    gui.handleMouseDrag(60, 15, false); // Drag up 80 pixels
     gui.handleMouseUp();
 
     double valNormal = 0.0;
@@ -75,8 +75,8 @@ int main() {
     std::cout << "GUI output event gesture queue test passed successfully! Events recorded: " << testCtx.types.size() << std::endl;
 
     // 2. Fine mouse drag test (isShift = true)
-    gui.handleMouseDown(130, 100, true); // Resonance knob at (130, 100) with Shift
-    gui.handleMouseDrag(130, 20, true);  // Drag up 80 pixels with Shift (from initial 0.5)
+    gui.handleMouseDown(165, 95, true); // Resonance knob at (165, 95) with Shift
+    gui.handleMouseDrag(165, 15, true);  // Drag up 80 pixels with Shift (from initial 0.5)
     gui.handleMouseUp();
 
     double valFine = 0.0;
@@ -142,6 +142,8 @@ int main() {
         void drawToggleSwitch(gritbaal::Graphics& g, const gritbaal::Control& ctrl, const gritbaal::Font& font) override {
             switchDrawn = true;
         }
+        void drawPushButton(gritbaal::Graphics& g, const gritbaal::Control& ctrl, const gritbaal::Font& font) override {}
+        void drawLedIndicator(gritbaal::Graphics& g, int cx, int cy, bool state, uint32_t activeColor = 0xFFFF3300) override {}
     };
 
     auto customRenderer = std::make_unique<TestCustomRenderer>();

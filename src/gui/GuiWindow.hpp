@@ -10,6 +10,7 @@
 #include <memory>
 #include "Font.hpp"
 #include "IControlRenderer.hpp"
+#include "PanelLayout.hpp"
 
 namespace gritbaal {
 
@@ -19,7 +20,8 @@ extern const clap_plugin_gui_t g_gritbaalGuiExtension;
 
 enum class ControlType {
     Knob,
-    ToggleSwitch
+    ToggleSwitch,
+    PushButton
 };
 
 struct Control {
@@ -74,6 +76,7 @@ private:
 
     Font font_{Font::default5x7()};
     std::unique_ptr<IControlRenderer> controlRenderer_;
+    std::unique_ptr<PanelLayout> layout_;
 
     int activeControlIndex_{-1};
     int dragStartY_{0};

@@ -1,8 +1,20 @@
 #include "Graphics.hpp"
 #include <cmath>
 #include <algorithm>
+#include <cstring>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 namespace gritbaal {
+
+OffscreenBuffer::OffscreenBuffer(int width, int height)
+    : width_(width), height_(height), data_(width * height, 0) {}
+
+void OffscreenBuffer::clear(uint32_t color) {
+    std::fill(data_.begin(), data_.end(), color);
+}
 
 Graphics::Graphics(uint32_t* buffer, int width, int height, int scale)
     : buffer_(buffer), width_(width), height_(height), scale_(scale),
@@ -35,15 +47,54 @@ uint32_t Graphics::blendColors(uint32_t src, uint32_t dst, float alpha) {
 
 void Graphics::drawRect(int x, int y, int w, int h, uint32_t color) {
     if (!buffer_) return;
+    uint32_t alpha = (color >> 24) & 0xFF;
+    if (alpha == 0) return;
+
     int xStart = (std::max)(0, x * scale_);
     int yStart = (std::max)(0, y * scale_);
     int xEnd = (std::min)(bufferWidth_, (x + w) * scale_);
     int yEnd = (std::min)(bufferHeight_, (y + h) * scale_);
 
-    for (int py = yStart; py < yEnd; ++py) {
-        for (int px = xStart; px < xEnd; ++px) {
-            buffer_[py * bufferWidth_ + px] = color;
+    if (alpha == 0xFF) {
+        for (int py = yStart; py < yEnd; ++py) {
+            for (int px = xStart; px < xEnd; ++px) {
+                buffer_[py * bufferWidth_ + px] = color;
+            }
         }
+    } else {
+        float a = alpha / 255.0f;
+        uint32_t opaqueColor = 0xFF000000 | (color & 0x00FFFFFF);
+        for (int py = yStart; py < yEnd; ++py) {
+            for (int px = xStart; px < xEnd; ++px) {
+                int idx = py * bufferWidth_ + px;
+                buffer_[idx] = blendColors(opaqueColor, buffer_[idx], a);
+            }
+        }
+    }
+}
+
+void Graphics::drawRectOutline(int x, int y, int w, int h, uint32_t color, int thickness) {
+    drawRect(x, y, w, thickness, color);
+    drawRect(x, y + h - thickness, w, thickness, color);
+    drawRect(x, y + thickness, thickness, h - 2 * thickness, color);
+    drawRect(x + w - thickness, y + thickness, thickness, h - 2 * thickness, color);
+}
+
+void Graphics::drawVerticalGradient(int x, int y, int w, int h, uint32_t topColor, uint32_t bottomColor) {
+    if (h <= 0) return;
+    for (int i = 0; i < h; ++i) {
+        float alpha = static_cast<float>(i) / static_cast<float>(h - 1);
+        uint32_t blended = blendColors(bottomColor, topColor, alpha);
+        drawRect(x, y + i, w, 1, blended);
+    }
+}
+
+void Graphics::drawHorizontalGradient(int x, int y, int w, int h, uint32_t leftColor, uint32_t rightColor) {
+    if (w <= 0) return;
+    for (int i = 0; i < w; ++i) {
+        float alpha = static_cast<float>(i) / static_cast<float>(w - 1);
+        uint32_t blended = blendColors(rightColor, leftColor, alpha);
+        drawRect(x + i, y, 1, h, blended);
     }
 }
 
@@ -297,6 +348,165 @@ void Graphics::drawText(int x, int y, const char* text, uint32_t color, const Fo
         drawChar(currX, y, *text, color, font, scale);
         currX += (charWidth + 1) * scale;
         text++;
+    }
+}
+
+void Graphics::drawArc(int cx, int cy, int radius, float startAngleRad, float endAngleRad, uint32_t color, int thickness) {
+    if (!buffer_) return;
+    float scaleF = static_cast<float>(scale_);
+    float cx2 = cx * scaleF + (scaleF * 0.5f);
+    float cy2 = cy * scaleF + (scaleF * 0.5f);
+
+    float halfThick = thickness * (scaleF * 0.5f);
+    float rMid = radius * scaleF;
+    float rOuter = rMid + halfThick + 0.75f;
+    float rInner = (std::max)(0.0f, rMid - halfThick - 0.75f);
+
+    // Normalize angles
+    while (endAngleRad < startAngleRad) endAngleRad += 2.0f * M_PI;
+
+    int minY = (std::max)(0, static_cast<int>(cy2 - rOuter - 1.0f));
+    int maxY = (std::min)(bufferHeight_ - 1, static_cast<int>(cy2 + rOuter + 1.0f));
+    int minX = (std::max)(0, static_cast<int>(cx2 - rOuter - 1.0f));
+    int maxX = (std::min)(bufferWidth_ - 1, static_cast<int>(cx2 + rOuter + 1.0f));
+
+    for (int py = minY; py <= maxY; ++py) {
+        float dy = static_cast<float>(py) - cy2;
+        for (int px = minX; px <= maxX; ++px) {
+            float dx = static_cast<float>(px) - cx2;
+            float dist = std::hypot(dx, dy);
+
+            if (dist >= rInner && dist <= rOuter) {
+                float angle = std::atan2(dy, dx);
+                while (angle < startAngleRad) angle += 2.0f * M_PI;
+
+                if (angle >= startAngleRad && angle <= endAngleRad) {
+                    float distFromMid = std::abs(dist - rMid);
+                    float alpha = 1.0f;
+                    if (distFromMid > halfThick - 0.75f) {
+                        alpha = (halfThick + 0.75f - distFromMid) / 1.5f;
+                    }
+                    if (alpha > 0.0f) {
+                        int idx = py * bufferWidth_ + px;
+                        buffer_[idx] = blendColors(color, buffer_[idx], alpha);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void Graphics::drawRivet(int cx, int cy, int radius) {
+    // Dark metallic industrial rivet with copper/steel highlight
+    drawCircle(cx, cy, radius, 0xFF121416);
+    drawCircleOutline(cx, cy, radius, 0xFF3A3D40);
+    drawCircle(cx, cy, radius - 1, 0xFF282A2C);
+    // Beveled highlight dot
+    drawRect(cx - 1, cy - 1, 1, 1, 0xFF888C90);
+}
+
+void Graphics::drawPanelFrame(int x, int y, int w, int h, const char* title, const Font& font) {
+    // Heavy dark forged iron panel with copper trim and rivets
+    // 1. Panel outer border (Dark Gunmetal)
+    drawRect(x, y, w, h, 0xFF16181A);
+
+    // 2. Recessed inner panel background with vertical metallic gradient
+    drawVerticalGradient(x + 2, y + 2, w - 4, h - 4, 0xFF202326, 0xFF121416);
+
+    // 3. Copper accent frame line
+    drawRectOutline(x + 3, y + 3, w - 6, h - 6, 0xFF8C5224, 1);
+    drawRectOutline(x + 4, y + 4, w - 8, h - 8, 0xFF1A1C1E, 1);
+
+    // 4. Rivets in four corners of panel frame
+    drawRivet(x + 8, y + 8, 3);
+    drawRivet(x + w - 8, y + 8, 3);
+    drawRivet(x + 8, y + h - 8, 3);
+    drawRivet(x + w - 8, y + h - 8, 3);
+
+    // 5. Header Title Bar (Dark plate with Amber text)
+    if (title && strlen(title) > 0) {
+        int titleLen = static_cast<int>(strlen(title));
+        int titleW = titleLen * (font.getWidth() + 1) + 12;
+        int titleX = x + (w - titleW) / 2;
+
+        drawRect(titleX, y, titleW, 14, 0xFF101214);
+        drawRectOutline(titleX, y, titleW, 14, 0xFF8C5224, 1);
+        drawText(titleX + 6, y + 3, title, 0xFFFF8A00, font, 1);
+    }
+}
+
+void Graphics::blitBuffer(int dstX, int dstY, const OffscreenBuffer& srcBuffer) {
+    if (!buffer_) return;
+    int srcW = srcBuffer.getWidth();
+    int srcH = srcBuffer.getHeight();
+
+    int startX = (std::max)(0, dstX * scale_);
+    int startY = (std::max)(0, dstY * scale_);
+    int endX = (std::min)(bufferWidth_, (dstX + srcW) * scale_);
+    int endY = (std::min)(bufferHeight_, (dstY + srcH) * scale_);
+
+    const uint32_t* srcData = srcBuffer.data();
+
+    for (int py = startY; py < endY; ++py) {
+        int srcY = (py - dstY * scale_) / scale_;
+        for (int px = startX; px < endX; ++px) {
+            int srcX = (px - dstX * scale_) / scale_;
+            uint32_t color = srcData[srcY * srcW + srcX];
+            uint32_t alpha = (color >> 24) & 0xFF;
+            if (alpha == 0xFF) {
+                buffer_[py * bufferWidth_ + px] = color;
+            } else if (alpha > 0) {
+                int idx = py * bufferWidth_ + px;
+                buffer_[idx] = blendColors(color, buffer_[idx], alpha / 255.0f);
+            }
+        }
+    }
+}
+
+void Graphics::blitRotatedBuffer(int dstCx, int dstCy, const OffscreenBuffer& srcBuffer, float angleRad) {
+    if (!buffer_) return;
+    int srcW = srcBuffer.getWidth();
+    int srcH = srcBuffer.getHeight();
+    float srcHalfW = srcW * 0.5f;
+    float srcHalfH = srcH * 0.5f;
+
+    float cosA = std::cos(-angleRad);
+    float sinA = std::sin(-angleRad);
+
+    float scaleF = static_cast<float>(scale_);
+    float dstCxScaled = dstCx * scaleF;
+    float dstCyScaled = dstCy * scaleF;
+
+    float maxR = std::hypot(srcHalfW, srcHalfH) * scaleF;
+    int minX = (std::max)(0, static_cast<int>(dstCxScaled - maxR - 1.0f));
+    int maxX = (std::min)(bufferWidth_ - 1, static_cast<int>(dstCxScaled + maxR + 1.0f));
+    int minY = (std::max)(0, static_cast<int>(dstCyScaled - maxR - 1.0f));
+    int maxY = (std::min)(bufferHeight_ - 1, static_cast<int>(dstCyScaled + maxR + 1.0f));
+
+    const uint32_t* srcData = srcBuffer.data();
+
+    for (int py = minY; py <= maxY; ++py) {
+        float dy = (static_cast<float>(py) - dstCyScaled) / scaleF;
+        for (int px = minX; px <= maxX; ++px) {
+            float dx = (static_cast<float>(px) - dstCxScaled) / scaleF;
+
+            float srcXf = dx * cosA - dy * sinA + srcHalfW;
+            float srcYf = dx * sinA + dy * cosA + srcHalfH;
+
+            int srcX = static_cast<int>(srcXf);
+            int srcY = static_cast<int>(srcYf);
+
+            if (srcX >= 0 && srcX < srcW && srcY >= 0 && srcY < srcH) {
+                uint32_t color = srcData[srcY * srcW + srcX];
+                uint32_t alpha = (color >> 24) & 0xFF;
+                if (alpha == 0xFF) {
+                    buffer_[py * bufferWidth_ + px] = color;
+                } else if (alpha > 0) {
+                    int idx = py * bufferWidth_ + px;
+                    buffer_[idx] = blendColors(color, buffer_[idx], alpha / 255.0f);
+                }
+            }
+        }
     }
 }
 
