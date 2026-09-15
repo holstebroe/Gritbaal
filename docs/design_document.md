@@ -11,7 +11,36 @@
 
 ---
 
-## 2. Audio Signal Flow & Architecture
+## 2. Front-Panel UI Layout & Panels Sketch
+
+The UI panel is structured into distinct recessed modular sections separated by heavy dark steel borders and copper rivets:
+
+```text
++-------------------------------------------------------------------------------------------------------+
+|  [GRITBAAL]  | PRESETS: [<] [01: Hellfire Bass ] [>] [SAVE] | TUNE: (o) OCT: [-1] | MASTER VOL: (o)  |
++-------------------------------------------------------------------------------------------------------+
+|  VCO SECTION                 | MIX & DRIVE           | VCF SECTION           | ENVELOPES              |
+| +--------------------------+ | +-------------------+ | +-------------------+ | +--------------------+ |
+| | VCO1:                    | | | VCO1 VOL:   (o)   | | | CUTOFF:     (o)   | | | ENV1 (FILTER):    | |
+| |  WAVE: [SAW/TRI/PULSE]   | | | VCO2 VOL:   (o)   | | | RESONANCE:  (o)   | | |  ATTACK:   (o)    | |
+| |  PULSE WIDTH: (o)        | | | RING MOD:   (o)   | | | MODE: [24dB/12dB] | | |  DECAY:    (o)    | |
+| | VCO2:                    | | | SUB VOL:    (o)   | | | ENV MOD:    (o)   | | |  SUSTAIN:  (o)    | |
+| |  WAVE: [SAW/TRI/PULSE]   | | | NOISE VOL:  (o)   | | | DRIVE (PRE): (o)  | | |  RELEASE:  (o)    | |
+| |  DETUNE:     (o)         | | |                   | | |                   | | | ENV2 (AMP):      | |
+| |  PITCH/FM:   (o)         | | | OVERDRIVE (TUBE)  | | | DRIVE TYPE:       | | |  ATTACK:   (o)    | |
+| |  SYNC: [OFF / ON]        | | | AMOUNT:     (o)   | | | [LADDER / MS20]   | | |  DECAY:    (o)    | |
+| +--------------------------+ | +-------------------+ | +-------------------+ | |  SUSTAIN:  (o)    | |
+|  MODULATION & LFO            | GLOBAL & DRIFT        | OUTPUT & FX           | |  RELEASE:  (o)    | |
+| +--------------------------+ | +-------------------+ | +-------------------+ | +--------------------+ |
+| | LFO1 RATE: (o) DEPTH: (o)| | | THERMAL DRIFT: (o)| | | PAN:        (o)   | | BORDER / PANEL FRAME |
+| | LFO2 RATE: (o) DEPTH: (o)| | | POWER SAG:     (o)| | | WARMTH VOL: (o)   | | Dark iron & rivets   |
+| +--------------------------+ | +-------------------+ | +-------------------+ | +--------------------+ |
++-------------------------------------------------------------------------------------------------------+
+```
+
+---
+
+## 3. Audio Signal Flow & Architecture
 
 The following ASCII diagram outlines the signal routing and modulation architecture of Gritbaal:
 
@@ -73,69 +102,53 @@ The following ASCII diagram outlines the signal routing and modulation architect
 
 ---
 
-## 3. Recommended Oscillators & Subsystems
+## 4. Recommended Oscillators & Subsystems
 
-Based on the *Vintage Analog Synthesizer Modeling Compendium* (`docs/vintage_synth_modelleing_compendium.md`), Gritbaal will implement component-informed oscillator models featuring:
+Based on the *Vintage Analog Synthesizer Modeling Compendium* (`docs/vintage_synth_modelleing_compendium.md`), Gritbaal implements component-informed oscillator models featuring:
 
-### 3.1 Dual PolyBLEP VCOs
+### 4.1 Dual PolyBLEP VCOs
 * **Anti-Aliased Band-Limited Oscillators:** PolyBLEP residual correction applied to Sawtooth, Triangle, Variable Pulse Width, and Ramp waveforms (Compendium Section 14).
 * **Hard Sync & Cross Modulation:** Hard synchronization of VCO2 to VCO1, with high-frequency sync transient smoothing. Exponential FM from VCO2 to VCO1 cutoff/pitch.
 * **Finite Switch Edge Speed:** Pulse wave transitions modeled with finite rise/fall times and voltage overshoot to add authentic edge character (Compendium Section 16).
 * **Sub-Oscillator & Noise Generator:** Sub-octave square wave generator and a colored noise generator (selectable White/Pink noise with thermal leakage).
 
-### 3.2 Thermal Drift & Per-Voice Mismatch Model
+### 4.2 Thermal Drift & Per-Voice Mismatch Model
 * **Static Tolerance Mismatch:** Random per-voice initial component offset (VCO pitch ±5 cents, filter cutoff ±8%, envelope attack/decay times ±10%) to simulate analog hardware component tolerances (Compendium Section 8).
 * **Dynamic Thermal Drift:** Continuous low-frequency random walk (1/f noise process) simulating thermal variations across transistors (Compendium Section 9 & 15).
 * **Warm-Up Drift Model:** Slow drift curve during the first 60 seconds after initialization (Compendium Section 44).
 
 ---
 
-## 4. Recommended Filters & Non-Linearities
+## 5. Recommended Filters & Non-Linearities
 
 Gritbaal features a selectable dual-filter architecture designed for maximum grit, screeching self-oscillation, and fat low-end retention.
 
-### 4.1 Topology 1: Non-Linear ZDF Transistor Ladder (Moog Style)
+### 5.1 Topology 1: Non-Linear ZDF Transistor Ladder (Moog Style)
 * **Topology:** 4-pole 24dB/octave zero-delay feedback (TPT/ZDF) ladder filter (Compendium Section 20 & 24).
 * **Non-Linear Transistor Saturation:** Each 1-pole stage incorporates differential pair $\tanh(v / (2 V_T))$ non-linear voltage transfer curves (Compendium Section 3 & 52).
 * **Resonance Drive & Saturation:** Non-linear feedback loop with soft-clipping diodes, causing resonance to compress smoothly and distort when driven hard.
 
-### 4.2 Topology 2: Diode Ring / Sallen-Key Filter (Korg MS-20 Style)
+### 5.2 Topology 2: Diode Ring / Sallen-Key Filter (Korg MS-20 Style)
 * **Topology:** 2-pole 12dB/octave Sallen-Key diode bridge filter (Compendium Section 31).
 * **Gritty Diode Clipping:** Diode limiter non-linearities in the feedback path producing the iconic MS-20 aggressive, screaming self-oscillation and raw harmonic bite.
 
-### 4.3 Overdrive & Power Supply Sag Modeling
+### 5.3 Overdrive & Power Supply Sag Modeling
 * **Pre-Filter Drive:** Variable input gain stage pushing the filter into heavy harmonic saturation before filtering.
 * **Post-Filter Tube/Diode Waveshaper:** Asymmetric waveshaper ($y = \tanh(x + 0.15 x^2)$) introducing even-harmonic tube warmth and heavy overdrive.
 * **Power Supply Rail Sag:** Dynamic reduction of internal supply headroom under heavy bass transients, modulating high-frequency gain and creating dynamic compression (Compendium Section 10).
 
 ---
 
-## 5. Modulation & Envelopes
+## 6. Modulation & Envelopes
 
-### 5.1 RC Circuit-Modeled Envelopes
+### 6.1 RC Circuit-Modeled Envelopes
 * **Analog RC Response:** Exponential ADSR curves based on capacitor charge/discharge equations ($V(t) = V_{target} + (V_0 - V_{target}) e^{-t / \tau}$) rather than linear slopes (Compendium Section 17).
 * **Capacitor Memory & Retriggering:** Retriggering a note before decay finishes preserves residual capacitor voltage, producing organic attack transients (Compendium Section 5).
 
-### 5.2 LFOs & Modulation Routing
+### 6.2 LFOs & Modulation Routing
 * Dual LFOs with Saw, Triangle, Square, and Random S&H shapes.
 * Syncable to host tempo (via CLAP transport interface).
 * Direct modulation routing to Pitch, Pulse Width, Cutoff, Resonance, Drive, and Pan.
-
----
-
-## 6. Implementation Strategy & Roadmap
-
-1. **Core Architecture Bootstrap (Completed):** Rename all references from Syrebas to Gritbaal, clean up project build and verified tests.
-2. **DSP Refinement:**
-   - Expand `Oscillator.hpp/.cpp` to include PolyBLEP pulse/saw, thermal drift, sub-oscillator, and ring modulation.
-   - Refactor `Filter.hpp/.cpp` to implement TPT/ZDF non-linear ladder filter and MS-20 diode model with drive parameter.
-   - Implement power supply sag and pre/post overdrive stages in `SynthEngine.hpp/.cpp`.
-3. **CLAP & Parameter Integration:**
-   - Register all new parameters (VCO1/VCO2 pitch, fine, detune, wave, PW, sync, sub, noise, drive, cutoff, resonance, filter mode, env mod, ADSR parameters, post drive, volume) in `GritbaalClap.cpp`.
-4. **GUI Enhancement:**
-   - Update `GuiWindow.cpp` control layout and custom renderers to align with the dark industrial Gritbaal aesthetic.
-5. **Testing & Validation:**
-   - Run `gritbaal_dsp_test` and `gritbaal_gui_test` to verify zero memory leaks, anti-aliasing efficiency, and DSP performance.
 
 ---
 
