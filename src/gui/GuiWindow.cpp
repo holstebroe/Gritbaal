@@ -135,38 +135,45 @@ void GuiWindow::updateKnobValuesFromPlugin() {
 }
 
 void GuiWindow::drawGritbaalTitle(Graphics& g, int x, int y) {
-    // Header Title Logo text "GRITBAAL SYNTH" in glowing Amber
-    g.drawText(x, y, "GRITBAAL SYNTH", 0xFFFF8A00, font_, 2);
+    // Top Bar Plate background
+    g.drawRect(0, 0, width_, 24, 0xFF0A0C0E);
+    g.drawRectOutline(0, 0, width_, 24, 0xFF2A2D30, 1);
+    g.drawRect(0, 23, width_, 1, 0xFF8C5224);
+
+    // Header Title Logo badge "GRITBAAL SYNTH" in glowing Amber with dark badge background
+    g.drawRect(x - 4, y, 180, 18, 0xFF121416);
+    g.drawRectOutline(x - 4, y, 180, 18, 0xFF8C5224, 1);
+    g.drawText(x + 4, y + 2, "GRITBAAL SYNTH", 0xFFFF8A00, font_, 2);
 
     // Render Header Preset Control: PRESETS: [<] [ 01: Hellfire Bass ] [>] [SAVE]
-    int presetX = 220;
-    g.drawText(presetX, y + 2, "PRESETS:", 0xFFD89A40, font_, 1);
+    int presetX = 210;
+    g.drawText(presetX, y + 4, "PRESET:", 0xFFD89A40, font_, 1);
 
     // [<] button
-    g.drawRect(presetX + 70, y, 16, 14, 0xFF101214);
-    g.drawRectOutline(presetX + 70, y, 16, 14, 0xFF8C5224, 1);
-    g.drawText(presetX + 75, y + 3, "<", 0xFFFF8A00, font_, 1);
+    g.drawRect(presetX + 55, y + 1, 18, 16, 0xFF141618);
+    g.drawRectOutline(presetX + 55, y + 1, 18, 16, 0xFF8C5224, 1);
+    g.drawText(presetX + 61, y + 5, "<", 0xFFFF8A00, font_, 1);
 
     // Preset Display Box
-    g.drawRect(presetX + 90, y, 160, 14, 0xFF0E1012);
-    g.drawRectOutline(presetX + 90, y, 160, 14, 0xFF8C5224, 1);
+    g.drawRect(presetX + 77, y + 1, 165, 16, 0xFF08090A);
+    g.drawRectOutline(presetX + 77, y + 1, 165, 16, 0xFF8C5224, 1);
     const char* presetName = kFactoryPresetNames[currentPresetIndex_ % kNumFactoryPresets];
-    g.drawText(presetX + 95, y + 3, presetName, 0xFFFFCC00, font_, 1);
+    g.drawText(presetX + 83, y + 5, presetName, 0xFFFFCC00, font_, 1);
 
     // [>] button
-    g.drawRect(presetX + 254, y, 16, 14, 0xFF101214);
-    g.drawRectOutline(presetX + 254, y, 16, 14, 0xFF8C5224, 1);
-    g.drawText(presetX + 259, y + 3, ">", 0xFFFF8A00, font_, 1);
+    g.drawRect(presetX + 246, y + 1, 18, 16, 0xFF141618);
+    g.drawRectOutline(presetX + 246, y + 1, 18, 16, 0xFF8C5224, 1);
+    g.drawText(presetX + 252, y + 5, ">", 0xFFFF8A00, font_, 1);
 
     // [SAVE] button
-    g.drawRect(presetX + 274, y, 40, 14, 0xFF101214);
-    g.drawRectOutline(presetX + 274, y, 40, 14, 0xFF8C5224, 1);
-    g.drawText(presetX + 281, y + 3, "SAVE", 0xFFD89A40, font_, 1);
+    g.drawRect(presetX + 268, y + 1, 42, 16, 0xFF141618);
+    g.drawRectOutline(presetX + 268, y + 1, 42, 16, 0xFF8C5224, 1);
+    g.drawText(presetX + 275, y + 5, "SAVE", 0xFFD89A40, font_, 1);
 
     // Currently touched/active control display bar
-    int touchedX = 550;
-    g.drawRect(touchedX, y, 410, 14, 0xFF0A0C0D);
-    g.drawRectOutline(touchedX, y, 410, 14, 0xFF8C5224, 1);
+    int touchedX = 540;
+    g.drawRect(touchedX, y + 1, 425, 16, 0xFF060708);
+    g.drawRectOutline(touchedX, y + 1, 425, 16, 0xFF8C5224, 1);
 
     char touchedBuf[64];
     if (activeControlIndex_ >= 0 && activeControlIndex_ < static_cast<int>(controls_.size())) {
@@ -177,11 +184,11 @@ void GuiWindow::drawGritbaalTitle(Graphics& g, int x, int y) {
         } else {
             snprintf(valText, sizeof(valText), "%.2f", activeCtrl.currentVal);
         }
-        snprintf(touchedBuf, sizeof(touchedBuf), "%s: %s", activeCtrl.label, valText);
+        snprintf(touchedBuf, sizeof(touchedBuf), "PARAM READOUT: %s = %s", activeCtrl.label, valText);
     } else {
-        snprintf(touchedBuf, sizeof(touchedBuf), "TOUCH CONTROL TO VIEW VALUE");
+        snprintf(touchedBuf, sizeof(touchedBuf), "PARAM READOUT: TOUCH CONTROL TO INSPECT VALUE");
     }
-    g.drawText(touchedX + 8, y + 3, touchedBuf, 0xFF00E5FF, font_, 1);
+    g.drawText(touchedX + 8, y + 5, touchedBuf, 0xFF00E5FF, font_, 1);
 }
 
 void GuiWindow::renderFrame() {
