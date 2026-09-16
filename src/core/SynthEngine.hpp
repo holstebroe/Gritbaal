@@ -8,36 +8,48 @@
 
 namespace gritbaal {
 
-enum class EmulationMode {
-    Accurate = 0,
-    Simplified = 1
+enum class ModTarget {
+    Cutoff = 0,
+    Resonance = 1,
+    Pitch = 2,
+    PulseWidth = 3,
+    Amp = 4,
+    Drive = 5,
+    Count = 6
 };
 
 struct SynthParameters {
     // Filter & General
     float cutoff{0.5f};        // Knob range 0.0 to 1.0
     float resonance{0.5f};     // Knob range 0.0 to 1.0
-    float envMod{0.5f};        // Knob range 0.0 to 1.0
     Waveform waveform{Waveform::Saw};
     float masterVolume{0.8f};
-    EmulationMode mode{EmulationMode::Accurate};
 
-    // Dual ADSR Envelopes (ENV1 = VCF, ENV2 = AMP)
+    // Dual ADSR Envelopes
     float env1Attack{0.01f};   // 1ms to 3s
     float env1Decay{0.3f};    // 1ms to 5s
     float env1Sustain{0.4f};  // 0.0 to 1.0
     float env1Release{0.3f};  // 1ms to 5s
+    ModTarget env1Target{ModTarget::Cutoff};
+    float env1Amount{0.75f};   // Bipolar normalized [0, 1] (0.75 = +0.5 positive mod)
 
     float env2Attack{0.01f};   // 1ms to 3s
     float env2Decay{0.3f};    // 1ms to 5s
     float env2Sustain{0.7f};  // 0.0 to 1.0
     float env2Release{0.3f};  // 1ms to 5s
+    ModTarget env2Target{ModTarget::Amp};
+    float env2Amount{1.0f};    // Bipolar normalized [0, 1] (1.0 = +1.0 full VCA env)
 
     // Dual LFOs
     float lfo1Rate{1.0f};      // 0.05 Hz to 30 Hz
-    float lfo1Depth{0.0f};     // LFO1 -> Cutoff Modulation
+    ModTarget lfo1Target{ModTarget::Cutoff};
+    float lfo1Depth{0.5f};     // Bipolar normalized [0, 1] (0.5 = 0 depth)
+    bool lfo1Sync{false};
+
     float lfo2Rate{2.0f};      // 0.05 Hz to 30 Hz
-    float lfo2Depth{0.0f};     // LFO2 -> Pulse Width Modulation
+    ModTarget lfo2Target{ModTarget::PulseWidth};
+    float lfo2Depth{0.5f};     // Bipolar normalized [0, 1] (0.5 = 0 depth)
+    bool lfo2Sync{false};
 
     // Extended Core DSP Parameters
     Waveform vco2Waveform{Waveform::Saw};

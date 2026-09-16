@@ -103,9 +103,9 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     env2_.setRelease(params_.env2Release);
 
     lfo1_.setRate(params_.lfo1Rate);
-    lfo1_.setDepth(params_.lfo1Depth);
+    lfo1_.setDepth(1.0f);
     lfo2_.setRate(params_.lfo2Rate);
-    lfo2_.setDepth(params_.lfo2Depth);
+    lfo2_.setDepth(1.0f);
 
     for (int i = 0; i < numFrames; ++i) {
         if (!env2_.isActive() && !isNoteActive_) {
@@ -115,63 +115,81 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         }
 
         // 1. Process LFOs
-        float lfo1Val = lfo1_.processNextSample(); // -lfo1Depth .. +lfo1Depth (Modulates Cutoff)
-        float lfo2Val = lfo2_.processNextSample(); // -lfo2Depth .. +lfo2Depth (Modulates Pulse Width)
+        float rawLfo1 = lfo1_.processNextSample(); // -1.0 to +1.0
+        float rawLfo2 = lfo2_.processNextSample(); // -1.0 to +1.0
 
-        // Apply LFO2 pulse width modulation
-        float modulatedPw1 = std::clamp(params_.vco1PulseWidth + lfo2Val * 0.4f, 0.05f, 0.95f);
-        float modulatedPw2 = std::clamp(params_.vco2PulseWidth + lfo2Val * 0.4f, 0.05f, 0.95f);
+        float lfo1Val = rawLfo1 * ((params_.lfo1Depth - 0.5f) * 2.0f);
+        float lfo2Val = rawLfo2 * ((params_.lfo2Depth - 0.5f) * 2.0f);
+
+        // 2. Process Envelopes
+        env1_.processNextSample();
+        env2_.processNextSample();
+
+        float env1Val = env1_.getValue();
+        float env2Val = env2_.getValue();
+
+        float env1ModVal = env1Val * ((params_.env1Amount - 0.5f) * 2.0f);
+        float env2ModVal = env2Val * ((params_.env2Amount - 0.5f) * 2.0f);
+
+        // 3. Aggregate Modulations
+        float modAcc[6] = {0.0f};
+        auto addMod = [&](ModTarget t, float val) {
+            int idx = static_cast<int>(t);
+            if (idx >= 0 && idx < 6) modAcc[idx] += val;
+        };
+
+        addMod(params_.lfo1Target, lfo1Val);
+        addMod(params_.lfo2Target, lfo2Val);
+        addMod(params_.env1Target, env1ModVal);
+        addMod(params_.env2Target, env2ModVal);
+
+        float modCutoff = modAcc[static_cast<int>(ModTarget::Cutoff)];
+        float modReson  = modAcc[static_cast<int>(ModTarget::Resonance)];
+        float modPitch  = modAcc[static_cast<int>(ModTarget::Pitch)];
+        float modPw     = modAcc[static_cast<int>(ModTarget::PulseWidth)];
+        float modAmp    = modAcc[static_cast<int>(ModTarget::Amp)];
+        float modDrive  = modAcc[static_cast<int>(ModTarget::Drive)];
+
+        float modulatedPw1 = std::clamp(params_.vco1PulseWidth + modPw * 0.4f, 0.05f, 0.95f);
+        float modulatedPw2 = std::clamp(params_.vco2PulseWidth + modPw * 0.4f, 0.05f, 0.95f);
         osc_.setVco1PulseWidth(modulatedPw1);
         osc_.setVco2PulseWidth(modulatedPw2);
+        osc_.setPitchModulationSemitones(modPitch * 12.0f);
 
         effectivePw1Norm_ = (modulatedPw1 - 0.05f) / 0.90f;
         effectivePw2Norm_ = (modulatedPw2 - 0.05f) / 0.90f;
 
-        // 2. Generate oscillator signal
         float rawOsc = osc_.processNextSample();
 
-        // 3. Process envelopes
-        env1_.processNextSample();
-        env2_.processNextSample();
-
-        float vcfEnvVal = env1_.getValue();
-        float vcaEnvVal = env2_.getValue();
-
-        // Calculate effective normalized cutoff considering base knob, LFO1, and ENV1 (VCF Env)
         float baseCutoff = std::clamp(params_.cutoff, 0.0f, 1.0f);
-        float envModNorm = std::clamp(params_.envMod, 0.0f, 1.0f);
-        float modCutoff = baseCutoff + lfo1Val + envModNorm * vcfEnvVal;
-        effectiveCutoffNorm_ = std::clamp(modCutoff, 0.0f, 1.0f);
+        effectiveCutoffNorm_ = std::clamp(baseCutoff + modCutoff, 0.0f, 1.0f);
 
-        float resNorm = std::clamp(params_.resonance, 0.0f, 1.0f);
+        float resNorm = std::clamp(params_.resonance + modReson, 0.0f, 1.0f);
 
-        // Power Supply Rail Sag: dynamic voltage drop under heavy low-frequency load
+        float effectivePreDrive = std::clamp(params_.preFilterDrive + modDrive * 2.0f, 1.0f, 5.0f);
+        filter_.setFilterType(params_.filterType);
+        filter_.setPreDrive(effectivePreDrive);
+
+        bool hasAmpTarget = (params_.lfo1Target == ModTarget::Amp ||
+                             params_.lfo2Target == ModTarget::Amp ||
+                             params_.env1Target == ModTarget::Amp ||
+                             params_.env2Target == ModTarget::Amp);
+        float vcaEnvVal = hasAmpTarget ? std::clamp(modAmp, 0.0f, 1.0f) : env2Val;
+
         float load = std::abs(rawOsc) * vcaEnvVal;
         powerSagLpf_ += 0.005f * (load - powerSagLpf_);
         railVoltage_ = 1.0f - params_.powerSagAmount * 0.25f * powerSagLpf_;
         railVoltage_ = std::clamp(railVoltage_, 0.65f, 1.0f);
 
-        float filterOut = 0.0f;
-        float vcaSignal = 0.0f;
-
-        // Exponential mapping for cutoff frequency
-        float cNorm = std::clamp(baseCutoff + lfo1Val, 0.0f, 1.0f);
-        float cTaper = cNorm * cNorm;
-        float cv_base = 3.64385f * cTaper;
-        float cv_envmod = envModNorm * vcfEnvVal * 4.0f;
-        float cv_total = cv_base + cv_envmod;
-
-        float effectiveCutoff = 150.0f * std::pow(2.0f, cv_total) * (1.0f - (0.15f * resNorm));
+        float cTaper = effectiveCutoffNorm_ * effectiveCutoffNorm_;
+        float cv_total = 3.64385f * cTaper;
+        float effectiveCutoff = 150.0f * std::pow(2.0f, cv_total);
         effectiveCutoff *= railVoltage_;
         float totalCutoff = std::clamp(effectiveCutoff, 20.0f, 16000.0f);
 
-        if (params_.mode == EmulationMode::Accurate) {
-            filterOut = filter_.processAccurateSample(rawOsc, totalCutoff, resNorm);
-        } else {
-            filterOut = filter_.processSample(rawOsc, totalCutoff, resNorm);
-        }
+        float filterOut = filter_.processAccurateSample(rawOsc, totalCutoff, resNorm);
 
-        vcaSignal = filterOut * vcaEnvVal;
+        float vcaSignal = filterOut * vcaEnvVal;
 
         // Exaggerated Warmth Saturation (rich second-harmonic analog warmth + soft asymmetric clipping):
         // y = x + warmth * (0.8 * x^2 + 0.3 * x^3)

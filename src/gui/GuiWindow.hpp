@@ -21,7 +21,8 @@ extern const clap_plugin_gui_t g_gritbaalGuiExtension;
 enum class ControlType {
     Knob,
     ToggleSwitch,
-    PushButton
+    PushButton,
+    ModeSelector
 };
 
 struct Control {
@@ -32,6 +33,8 @@ struct Control {
     int radius;
     double minVal, maxVal, currentVal;
     bool isStepped;
+    bool isBipolar{false};
+    std::vector<std::string> options{};
 };
 
 class GuiWindow {

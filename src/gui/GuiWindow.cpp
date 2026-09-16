@@ -58,24 +58,22 @@ GuiWindow::~GuiWindow() {
 void GuiWindow::initControls() {
     controls_.clear();
 
+    std::vector<std::string> targetOpts = { "CUTOFF", "RESON", "PITCH", "PW", "AMP", "DRIVE" };
+
     // 1. VCO SECTION (x: 15..275, y: 35..235)
-    // Top Row: VCO1 Wave | VCO1 PW | Detune
     controls_.push_back({ PARAM_WAVEFORM, "VCO1 WAVE", ControlType::ToggleSwitch, 60, 100, 15, 0.0, 1.0, 0.0, true });
     controls_.push_back({ PARAM_VCO1_PW, "VCO1 PW", ControlType::Knob, 135, 100, 18, 0.0, 1.0, 0.5, false });
     controls_.push_back({ PARAM_VCO2_DETUNE, "DETUNE", ControlType::Knob, 210, 100, 18, 0.0, 1.0, 0.5, false });
 
-    // Bottom Row: VCO2 Wave | VCO2 PW | Pitch FM
     controls_.push_back({ PARAM_VCO2_WAVE, "VCO2 WAVE", ControlType::ToggleSwitch, 60, 175, 15, 0.0, 1.0, 0.0, true });
     controls_.push_back({ PARAM_VCO2_PW, "VCO2 PW", ControlType::Knob, 135, 175, 18, 0.0, 1.0, 0.5, false });
     controls_.push_back({ PARAM_FM_AMOUNT, "PITCH FM", ControlType::Knob, 210, 175, 18, 0.0, 1.0, 0.0, false });
 
     // 2. MIX & DRIVE SECTION (x: 285..515, y: 35..235)
-    // Top Row: VCO1 VOL | SUB VOL | RING MOD
     controls_.push_back({ PARAM_VCO1_VOL, "VCO1 VOL", ControlType::Knob, 335, 100, 18, 0.0, 1.0, 1.0, false });
     controls_.push_back({ PARAM_SUB_VOL, "SUB VOL", ControlType::Knob, 400, 100, 18, 0.0, 1.0, 0.0, false });
     controls_.push_back({ PARAM_RING_MOD, "RING MOD", ControlType::Knob, 465, 100, 18, 0.0, 1.0, 0.0, false });
 
-    // Bottom Row: VCO2 VOL | CRACKLE | PRE DRIVE
     controls_.push_back({ PARAM_VCO2_VOL, "VCO2 VOL", ControlType::Knob, 335, 175, 18, 0.0, 1.0, 0.0, false });
     controls_.push_back({ PARAM_NOISE_VOL, "CRACKLE", ControlType::Knob, 400, 175, 18, 0.0, 1.0, 0.0, false });
     controls_.push_back({ PARAM_PRE_DRIVE, "PRE DRIVE", ControlType::Knob, 465, 175, 18, 0.0, 1.0, 0.0, false });
@@ -83,9 +81,7 @@ void GuiWindow::initControls() {
     // 3. VCF SECTION (x: 525..745, y: 35..235)
     controls_.push_back({ PARAM_CUTOFF, "CUTOFF", ControlType::Knob, 580, 100, 20, 0.0, 1.0, 0.5, false });
     controls_.push_back({ PARAM_RESONANCE, "RESONANCE", ControlType::Knob, 670, 100, 20, 0.0, 1.0, 0.5, false });
-
-    controls_.push_back({ PARAM_ENV_MOD, "ENV MOD", ControlType::Knob, 580, 175, 18, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_FILTER_TYPE, "MS20/LADDER", ControlType::ToggleSwitch, 670, 175, 15, 0.0, 1.0, 0.0, true });
+    controls_.push_back({ PARAM_FILTER_TYPE, "MS20/LADDER", ControlType::ToggleSwitch, 625, 175, 15, 0.0, 1.0, 0.0, true });
 
     // 4. GLOBAL & DRIFT (x: 755..965, y: 35..235)
     controls_.push_back({ PARAM_OVERDRIVE, "TUBE DRIVE", ControlType::Knob, 810, 100, 18, 0.0, 1.0, 0.0, false });
@@ -93,32 +89,41 @@ void GuiWindow::initControls() {
     controls_.push_back({ PARAM_POWER_SAG, "POWER SAG", ControlType::Knob, 855, 175, 18, 0.0, 1.0, 0.1, false });
 
     // 5. MODULATION & LFO (x: 15..275, y: 245..465)
-    controls_.push_back({ PARAM_HARD_SYNC, "HARD SYNC", ControlType::ToggleSwitch, 60, 310, 15, 0.0, 1.0, 0.0, true });
-    controls_.push_back({ PARAM_LFO1_RATE, "LFO1 RATE", ControlType::Knob, 135, 310, 18, 0.0, 1.0, 0.1, false });
-    controls_.push_back({ PARAM_LFO1_DEPTH, "LFO1 CUTOFF", ControlType::Knob, 210, 310, 18, 0.0, 1.0, 0.0, false });
+    controls_.push_back({ PARAM_HARD_SYNC, "HARD SYNC", ControlType::ToggleSwitch, 48, 310, 15, 0.0, 1.0, 0.0, true });
+    controls_.push_back({ PARAM_LFO1_SYNC, "L1 SYNC", ControlType::ToggleSwitch, 98, 310, 15, 0.0, 1.0, 0.0, true });
+    controls_.push_back({ PARAM_LFO1_RATE, "LFO1 RATE", ControlType::Knob, 152, 310, 18, 0.0, 1.0, 0.1, false });
 
-    controls_.push_back({ PARAM_LFO2_RATE, "LFO2 RATE", ControlType::Knob, 135, 390, 18, 0.0, 1.0, 0.1, false });
-    controls_.push_back({ PARAM_LFO2_DEPTH, "LFO2 PW", ControlType::Knob, 210, 390, 18, 0.0, 1.0, 0.0, false });
+    controls_.push_back({ PARAM_LFO1_TARGET, "LFO1 TGT", ControlType::ModeSelector, 218, 285, 0, 0.0, 5.0, 0.0, true, false, targetOpts });
+    controls_.push_back({ PARAM_LFO1_DEPTH, "", ControlType::Knob, 218, 310, 18, 0.0, 1.0, 0.5, false, true });
 
-    // 6. ENVELOPES (ENV1 Filter & ENV2 Amp) (x: 285..755, y: 245..465)
-    // ENV1 (FILTER)
-    controls_.push_back({ PARAM_ENV1_A, "ENV1 ATK", ControlType::Knob, 335, 310, 18, 0.0, 1.0, 0.01, false });
-    controls_.push_back({ PARAM_ENV1_D, "ENV1 DEC", ControlType::Knob, 400, 310, 18, 0.0, 1.0, 0.3, false });
-    controls_.push_back({ PARAM_ENV1_S, "ENV1 SUS", ControlType::Knob, 465, 310, 18, 0.0, 1.0, 0.4, false });
-    controls_.push_back({ PARAM_ENV1_R, "ENV1 REL", ControlType::Knob, 530, 310, 18, 0.0, 1.0, 0.3, false });
+    controls_.push_back({ PARAM_LFO2_SYNC, "L2 SYNC", ControlType::ToggleSwitch, 98, 390, 15, 0.0, 1.0, 0.0, true });
+    controls_.push_back({ PARAM_LFO2_RATE, "LFO2 RATE", ControlType::Knob, 152, 390, 18, 0.0, 1.0, 0.1, false });
 
-    // ENV2 (AMP)
-    controls_.push_back({ PARAM_ENV2_A, "ENV2 ATK", ControlType::Knob, 335, 390, 18, 0.0, 1.0, 0.01, false });
-    controls_.push_back({ PARAM_ENV2_D, "ENV2 DEC", ControlType::Knob, 400, 390, 18, 0.0, 1.0, 0.3, false });
-    controls_.push_back({ PARAM_ENV2_S, "ENV2 SUS", ControlType::Knob, 465, 390, 18, 0.0, 1.0, 0.7, false });
-    controls_.push_back({ PARAM_ENV2_R, "ENV2 REL", ControlType::Knob, 530, 390, 18, 0.0, 1.0, 0.3, false });
+    controls_.push_back({ PARAM_LFO2_TARGET, "LFO2 TGT", ControlType::ModeSelector, 218, 365, 0, 0.0, 5.0, 3.0, true, false, targetOpts });
+    controls_.push_back({ PARAM_LFO2_DEPTH, "", ControlType::Knob, 218, 390, 18, 0.0, 1.0, 0.5, false, true });
 
-    // Output Warmth
-    controls_.push_back({ PARAM_WARMTH, "WARMTH", ControlType::Knob, 640, 350, 20, 0.0, 1.0, 0.0, false });
+    // 6. ENVELOPES (ENV1 & ENV2) (x: 285..755, y: 245..465)
+    // ENV1
+    controls_.push_back({ PARAM_ENV1_A, "ENV1 ATK", ControlType::Knob, 325, 310, 18, 0.0, 1.0, 0.01, false });
+    controls_.push_back({ PARAM_ENV1_D, "ENV1 DEC", ControlType::Knob, 380, 310, 18, 0.0, 1.0, 0.3, false });
+    controls_.push_back({ PARAM_ENV1_S, "ENV1 SUS", ControlType::Knob, 435, 310, 18, 0.0, 1.0, 0.4, false });
+    controls_.push_back({ PARAM_ENV1_R, "ENV1 REL", ControlType::Knob, 490, 310, 18, 0.0, 1.0, 0.3, false });
+
+    controls_.push_back({ PARAM_ENV1_TARGET, "ENV1 TGT", ControlType::ModeSelector, 555, 285, 0, 0.0, 5.0, 0.0, true, false, targetOpts });
+    controls_.push_back({ PARAM_ENV1_AMT, "", ControlType::Knob, 555, 310, 18, 0.0, 1.0, 0.75, false, true });
+
+    // ENV2
+    controls_.push_back({ PARAM_ENV2_A, "ENV2 ATK", ControlType::Knob, 325, 390, 18, 0.0, 1.0, 0.01, false });
+    controls_.push_back({ PARAM_ENV2_D, "ENV2 DEC", ControlType::Knob, 380, 390, 18, 0.0, 1.0, 0.3, false });
+    controls_.push_back({ PARAM_ENV2_S, "ENV2 SUS", ControlType::Knob, 435, 390, 18, 0.0, 1.0, 0.7, false });
+    controls_.push_back({ PARAM_ENV2_R, "ENV2 REL", ControlType::Knob, 490, 390, 18, 0.0, 1.0, 0.3, false });
+
+    controls_.push_back({ PARAM_ENV2_TARGET, "ENV2 TGT", ControlType::ModeSelector, 555, 365, 0, 0.0, 5.0, 4.0, true, false, targetOpts });
+    controls_.push_back({ PARAM_ENV2_AMT, "", ControlType::Knob, 555, 390, 18, 0.0, 1.0, 1.0, false, true });
 
     // 7. OUTPUT & MASTER (x: 765..965, y: 245..465)
-    controls_.push_back({ PARAM_MODE, "ACC/SIMP", ControlType::ToggleSwitch, 810, 330, 15, 0.0, 1.0, 0.0, true });
-    controls_.push_back({ PARAM_VOLUME, "MASTER VOL", ControlType::Knob, 895, 350, 24, 0.0, 1.0, 0.8, false });
+    controls_.push_back({ PARAM_WARMTH, "WARMTH", ControlType::Knob, 815, 350, 20, 0.0, 1.0, 0.0, false });
+    controls_.push_back({ PARAM_VOLUME, "MASTER VOL", ControlType::Knob, 905, 350, 24, 0.0, 1.0, 0.8, false });
 
     updateKnobValuesFromPlugin();
 }
@@ -220,6 +225,8 @@ void GuiWindow::renderFrame() {
                 } else {
                     controlRenderer_->drawKnob(g, ctrl, font_);
                 }
+            } else if (ctrl.type == ControlType::ModeSelector) {
+                controlRenderer_->drawModeSelector(g, ctrl, font_);
             } else if (ctrl.type == ControlType::ToggleSwitch) {
                 controlRenderer_->drawToggleSwitch(g, ctrl, font_);
             } else if (ctrl.type == ControlType::PushButton) {
@@ -292,6 +299,17 @@ void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
                 renderFrame();
                 break;
             }
+        } else if (ctrl.type == ControlType::ModeSelector) {
+            if (std::abs(x - ctrl.x) <= 30 && std::abs(y - ctrl.y) <= 12) {
+                activeControlIndex_ = static_cast<int>(i);
+                dragStartY_ = y;
+                dragStartVal_ = ctrl.currentVal;
+                if (plugin_) {
+                    plugin_->onBeginEditFromGui(ctrl.id);
+                }
+                renderFrame();
+                break;
+            }
         } else if (ctrl.type == ControlType::ToggleSwitch) {
             if (std::abs(x - ctrl.x) <= 20 && std::abs(y - ctrl.y) <= 25) {
                 activeControlIndex_ = static_cast<int>(i);
@@ -315,6 +333,21 @@ void GuiWindow::handleMouseDrag(int x, int y, bool isShift) {
     if (activeControlIndex_ < 0 || activeControlIndex_ >= static_cast<int>(controls_.size())) return;
 
     auto& ctrl = controls_[activeControlIndex_];
+    if (ctrl.type == ControlType::ModeSelector) {
+        int deltaY = dragStartY_ - y;
+        int stepChange = deltaY / 12;
+        int numOpts = static_cast<int>(ctrl.options.size());
+        int newIdx = std::clamp(static_cast<int>(dragStartVal_) + stepChange, 0, numOpts - 1);
+        if (newIdx != static_cast<int>(ctrl.currentVal)) {
+            ctrl.currentVal = static_cast<double>(newIdx);
+            if (plugin_) {
+                plugin_->onParamValueFromGui(ctrl.id, ctrl.currentVal);
+            }
+            renderFrame();
+        }
+        return;
+    }
+
     if (ctrl.type != ControlType::Knob) return;
 
     if (isShift != lastShiftState_) {

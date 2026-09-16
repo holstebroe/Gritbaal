@@ -74,6 +74,17 @@ int main() {
     assert(testCtx.paramIds.front() == gritbaal::PARAM_CUTOFF);
     std::cout << "GUI output event gesture queue test passed successfully! Events recorded: " << testCtx.types.size() << std::endl;
 
+    // 1b. ModeSelector target label drag test
+    // LFO1_TARGET ModeSelector is at x=218, y=285
+    gui.handleMouseDown(218, 285, false);
+    gui.handleMouseDrag(218, 260, false); // Drag UP 25 pixels (2 steps)
+    gui.handleMouseUp();
+
+    double lfo1TargetVal = 0.0;
+    plugin.paramsValue(gritbaal::PARAM_LFO1_TARGET, &lfo1TargetVal);
+    std::cout << "LFO1 Target after 25px UP drag on ModeSelector: " << lfo1TargetVal << std::endl;
+    assert(lfo1TargetVal == 2.0); // 0 (Cutoff) + 2 = 2 (Pitch)
+
     // 2. Fine mouse drag test (isShift = true)
     gui.handleMouseDown(670, 100, true); // Resonance knob at (670, 100) with Shift
     gui.handleMouseDrag(670, 20, true);  // Drag up 80 pixels with Shift (from initial 0.5)
@@ -142,6 +153,7 @@ int main() {
         void drawKnobModulated(gritbaal::Graphics& g, const gritbaal::Control& ctrl, const gritbaal::Font& font, double modValNorm) override {
             knobDrawn = true;
         }
+        void drawModeSelector(gritbaal::Graphics& g, const gritbaal::Control& ctrl, const gritbaal::Font& font) override {}
         void drawToggleSwitch(gritbaal::Graphics& g, const gritbaal::Control& ctrl, const gritbaal::Font& font) override {
             switchDrawn = true;
         }
