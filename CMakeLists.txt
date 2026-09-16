@@ -23,7 +23,8 @@ set(CLAP_SOURCES
 set(GUI_SOURCES
     src/gui/Font.cpp
     src/gui/Graphics.cpp
-    src/gui/ControlRenderer.cpp
+    src/gui/TB303ControlRenderer.cpp
+    src/gui/IndustrialGritbaalRenderer.cpp
     src/gui/GuiWindow.cpp
 )
 

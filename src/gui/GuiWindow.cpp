@@ -1,6 +1,6 @@
 #include "GuiWindow.hpp"
 #include "Graphics.hpp"
-#include "ControlRenderer.hpp"
+#include "IndustrialGritbaalRenderer.hpp"
 #include "clap/GritbaalClap.hpp"
 #include <cmath>
 #include <cstring>
@@ -626,7 +626,7 @@ void GuiWindow::initWin32Window() {
     HWND parent = static_cast<HWND>(parentHwnd_);
 
     hwnd_ = CreateWindowExW(
-        0, kGritbaalClassName, L"Gritbaal 303",
+        0, kGritbaalClassName, L"Gritbaal Synthesizer",
         WS_CHILD | WS_VISIBLE,
         0, 0, width_, height_,
         parent, NULL, hInstance, this

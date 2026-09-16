@@ -44,7 +44,7 @@ void Filter::reset() {
     skS2_ = 0.0f;
 }
 
-float Filter::processAccurateSample(float input, float cutoffHz, float resonance) {
+float Filter::processCoupledLadderSample(float input, float cutoffHz, float resonance) {
     // Apply Pre-Filter Drive Stage
     float drivenInput = std::tanh(input * preDrive_);
 
@@ -56,11 +56,11 @@ float Filter::processAccurateSample(float input, float cutoffHz, float resonance
     float dt = 1.0f / static_cast<float>(oversampledRate_);
     float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 18000.0f);
 
-    float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz;
+    float wc = kTWO_PI_F * totalCutoffHz;
 
     float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
     float hpfCutoff = 150.0f + 100.0f * resNorm;
-    float hpfAlpha = 1.0f / (1.0f + 2.0f * 3.14159265358979323846f * hpfCutoff * dt);
+    float hpfAlpha = 1.0f / (1.0f + kTWO_PI_F * hpfCutoff * dt);
 
     float kFb = resNorm * 33.0f;
 
@@ -126,7 +126,7 @@ float Filter::processSallenKeySample(float input, float cutoffHz, float resonanc
     float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 18000.0f);
     float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
 
-    float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz;
+    float wc = kTWO_PI_F * totalCutoffHz;
     float g = std::tan(wc / (2.0f * static_cast<float>(sampleRate_)));
     float k = resNorm * 2.2f; // Sallen-Key resonance scaling up to screaming self-oscillation boundary
 
@@ -164,7 +164,7 @@ float Filter::processOversampledSample(float input, float cutoffHz, float resona
 
     float resGain = resNorm * 16.5f;
 
-    float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz;
+    float wc = kTWO_PI_F * totalCutoffHz;
     float gBase = std::tan(wc / (2.0f * static_cast<float>(oversampledRate_)));
 
     float g1 = gBase * capScale1_;
@@ -216,7 +216,7 @@ float Filter::processOversampledSample(float input, float cutoffHz, float resona
 }
 
 float Filter::processSample(float input, float cutoffHz, float resonance) {
-    return processAccurateSample(input, cutoffHz, resonance);
+    return processCoupledLadderSample(input, cutoffHz, resonance);
 }
 
 } // namespace gritbaal
