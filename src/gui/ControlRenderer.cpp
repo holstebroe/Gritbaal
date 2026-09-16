@@ -123,6 +123,61 @@ void TB303ControlRenderer::drawLedIndicator(Graphics& g, int cx, int cy, bool st
 // IndustrialGritbaalRenderer Implementation
 // ==========================================================
 
+IndustrialGritbaalRenderer::IndustrialGritbaalRenderer() = default;
+
+static std::unique_ptr<OffscreenBuffer> createKnobCapSprite(int radius, int scale) {
+    int dim = (radius + 4) * 2;
+    auto buf = std::make_unique<OffscreenBuffer>(dim * scale, dim * scale);
+    Graphics kg(buf->data(), dim, dim, scale);
+    int cx = dim / 2;
+    int cy = dim / 2;
+
+    // 1. Drop Shadow & Outer Copper Trim Bezel
+    kg.drawCircle(cx + 1, cy + 1, radius + 2, 0xFF08090A);
+    kg.drawCircle(cx, cy, radius + 1, 0xFF8C5224);
+
+    // 2. Heavy Gunmetal Knurled Skirt
+    kg.drawCircle(cx, cy, radius, 0xFF282C30);
+    kg.drawCircle(cx, cy, radius - 1, 0xFF3C4045);
+
+    // Deep knurling ridges around edge
+    for (int a = 0; a < 360; a += 20) {
+        double rad = a * M_PI / 180.0;
+        int rx1 = cx + static_cast<int>(std::cos(rad) * (radius - 4));
+        int ry1 = cy + static_cast<int>(std::sin(rad) * (radius - 4));
+        int rx2 = cx + static_cast<int>(std::cos(rad) * radius);
+        int ry2 = cy + static_cast<int>(std::sin(rad) * radius);
+        kg.drawLine(rx1, ry1, rx2, ry2, 0xFF121416, 1);
+    }
+
+    // 3. Conical Brushed Metal Face
+    kg.drawCircle(cx, cy, radius - 4, 0xFF222528);
+    kg.drawCircleOutline(cx, cy, radius - 4, 0xFF8C5224);
+    kg.drawCircleOutline(cx, cy, radius - 6, 0xFF141618);
+
+    // 4. Indicator Pointer facing UP (12 o'clock)
+    kg.drawLine(cx, cy - 1, cx, cy - (radius - 2), 0xFFFF3300, 2);
+    kg.drawCircle(cx, cy - (radius - 2), 1, 0xFFFFCC00);
+
+    return buf;
+}
+
+void IndustrialGritbaalRenderer::ensureKnobSprites(int scale) {
+    if (cachedScale_ == scale && knobCapSmall_) return;
+
+    cachedScale_ = scale;
+    knobCapSmall_ = createKnobCapSprite(18, scale);
+    knobCapMedium_ = createKnobCapSprite(20, scale);
+    knobCapLarge_ = createKnobCapSprite(24, scale);
+}
+
+const OffscreenBuffer* IndustrialGritbaalRenderer::getKnobSprite(int radius, int scale) {
+    ensureKnobSprites(scale);
+    if (radius <= 18) return knobCapSmall_.get();
+    if (radius <= 20) return knobCapMedium_.get();
+    return knobCapLarge_.get();
+}
+
 void IndustrialGritbaalRenderer::drawKnob(Graphics& g, const Control& knob, const Font& font) {
     drawKnobModulated(g, knob, font, knob.currentVal);
 }
@@ -141,19 +196,27 @@ void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& k
     normVal = std::clamp(normVal, 0.0, 1.0);
     double activeAngle = startAngle + normVal * totalAngle;
 
-    // Background track arc (Dark Copper)
-    g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(startAngle), static_cast<float>(startAngle + totalAngle), 0xFF3A2010, 2);
-    // Active base track arc (Glowing Volcanic Orange/Red)
+    // Track background groove (recessed dark copper/steel)
+    g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(startAngle), static_cast<float>(startAngle + totalAngle), 0xFF2A180C, 3);
+    g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(startAngle), static_cast<float>(startAngle + totalAngle), 0xFF140B05, 1);
+
+    // Base parameter value arc (Glowing Volcanic Amber/Orange)
     if (normVal > 0.01) {
-        g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(startAngle), static_cast<float>(activeAngle), 0xFFFF4500, 2);
+        g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(startAngle), static_cast<float>(activeAngle), 0xFFFF5500, 2);
     }
 
-    // Second Arc: Realtime Modulated Position (Bright Neon Cyan/Yellow glow)
+    // Realtime LFO/Envelope Modulation Arc (Outer Neon Cyan ring)
     double mNorm = std::clamp(modValNorm, 0.0, 1.0);
     double modAngle = startAngle + mNorm * totalAngle;
+    g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(startAngle), static_cast<float>(startAngle + totalAngle), 0xFF003040, 1);
     g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(startAngle), static_cast<float>(modAngle), 0xFF00E5FF, 2);
 
-    // Tick marks at minimum and maximum
+    // Modulated tip indicator glowing dot
+    int modTipX = knob.x + static_cast<int>(std::cos(modAngle) * (knob.radius + 8));
+    int modTipY = knob.y + static_cast<int>(std::sin(modAngle) * (knob.radius + 8));
+    g.drawCircle(modTipX, modTipY, 2, 0xFF00FFFF);
+
+    // Min / Center / Max tick marks with copper/steel highlights
     int rIn = knob.radius + 4;
     int rOut = knob.radius + 7;
     int minX1 = knob.x + static_cast<int>(std::cos(startAngle) * rIn);
@@ -162,6 +225,13 @@ void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& k
     int minY2 = knob.y + static_cast<int>(std::sin(startAngle) * rOut);
     g.drawLine(minX1, minY1, minX2, minY2, 0xFF8C5224, 1);
 
+    double centerAngle = startAngle + totalAngle * 0.5;
+    int cx1 = knob.x + static_cast<int>(std::cos(centerAngle) * rIn);
+    int cy1 = knob.y + static_cast<int>(std::sin(centerAngle) * rIn);
+    int cx2 = knob.x + static_cast<int>(std::cos(centerAngle) * rOut);
+    int cy2 = knob.y + static_cast<int>(std::sin(centerAngle) * rOut);
+    g.drawLine(cx1, cy1, cx2, cy2, 0xFF505458, 1);
+
     double endAngle = startAngle + totalAngle;
     int maxX1 = knob.x + static_cast<int>(std::cos(endAngle) * rIn);
     int maxY1 = knob.y + static_cast<int>(std::sin(endAngle) * rIn);
@@ -169,34 +239,14 @@ void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& k
     int maxY2 = knob.y + static_cast<int>(std::sin(endAngle) * rOut);
     g.drawLine(maxX1, maxY1, maxX2, maxY2, 0xFF8C5224, 1);
 
-    // 3. Knob Outer Bezel (Copper / Heavy Dark Steel)
-    g.drawCircle(knob.x + 1, knob.y + 1, knob.radius + 2, 0xFF0A0B0C);
-    g.drawCircle(knob.x, knob.y, knob.radius + 1, 0xFF8C5224);
-
-    // 4. Knob Body (Industrial Dark Gunmetal & Heavy Knurling)
-    g.drawCircle(knob.x, knob.y, knob.radius, 0xFF24272A);
-    g.drawCircle(knob.x, knob.y, knob.radius - 1, 0xFF383C40);
-
-    // Deep heavy knurled teeth around skirt
-    for (int a = 0; a < 360; a += 20) {
-        double rad = a * M_PI / 180.0;
-        int rx1 = knob.x + static_cast<int>(std::cos(rad) * (knob.radius - 4));
-        int ry1 = knob.y + static_cast<int>(std::sin(rad) * (knob.radius - 4));
-        int rx2 = knob.x + static_cast<int>(std::cos(rad) * knob.radius);
-        int ry2 = knob.y + static_cast<int>(std::sin(rad) * knob.radius);
-        g.drawLine(rx1, ry1, rx2, ry2, 0xFF141618, 1);
+    // 3. Render pre-rendered rotated knob cap
+    const OffscreenBuffer* knobBuf = getKnobSprite(knob.radius, g.getScale());
+    if (knobBuf) {
+        // Sprite pointer is created facing UP (12 o'clock, which is -M_PI / 2 in std math)
+        // Rotate sprite by (activeAngle - (-M_PI / 2)) = activeAngle + M_PI / 2
+        float rotationAngle = static_cast<float>(activeAngle + M_PI / 2.0);
+        g.blitRotatedBuffer(knob.x, knob.y, *knobBuf, rotationAngle);
     }
-
-    // 5. Conical Top Face (Brushed Gunmetal & Copper Inner Ring)
-    g.drawCircle(knob.x, knob.y, knob.radius - 4, 0xFF202326);
-    g.drawCircleOutline(knob.x, knob.y, knob.radius - 4, 0xFF8C5224);
-
-    // 6. Glowing Red/Amber Pointer Line
-    int ptrX = knob.x + static_cast<int>(std::cos(activeAngle) * (knob.radius - 3));
-    int ptrY = knob.y + static_cast<int>(std::sin(activeAngle) * (knob.radius - 3));
-
-    g.drawLine(knob.x, knob.y, ptrX, ptrY, 0xFFFF3300, 2);
-    g.drawCircle(ptrX, ptrY, 1, 0xFFFFCC00);
 }
 
 void IndustrialGritbaalRenderer::drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) {
@@ -206,9 +256,12 @@ void IndustrialGritbaalRenderer::drawToggleSwitch(Graphics& g, const Control& ct
     g.drawText(labelX, ctrl.y - 28, ctrl.label, 0xFFD89A40, font, 1);
 
     // Outer industrial dark iron frame box with copper trim
-    g.drawRect(ctrl.x - 10, ctrl.y - 18, 20, 36, 0xFF101214);
+    g.drawRect(ctrl.x - 10, ctrl.y - 18, 20, 36, 0xFF0E1012);
     g.drawRectOutline(ctrl.x - 10, ctrl.y - 18, 20, 36, 0xFF8C5224, 1);
-    g.drawRect(ctrl.x - 7, ctrl.y - 15, 14, 30, 0xFF181B1D);
+    g.drawRect(ctrl.x - 8, ctrl.y - 16, 16, 32, 0xFF181B1D);
+
+    // Beveled switch slot recessed track
+    g.drawRect(ctrl.x - 3, ctrl.y - 14, 6, 28, 0xFF0A0B0C);
 
     // Toggle handle (Chunky metallic copper/steel lever)
     bool state = (ctrl.currentVal >= 0.5);
@@ -216,10 +269,14 @@ void IndustrialGritbaalRenderer::drawToggleSwitch(Graphics& g, const Control& ct
 
     g.drawRect(ctrl.x - 8, handleY, 16, 12, 0xFF0E1012);
     g.drawRect(ctrl.x - 7, handleY + 1, 14, 10, 0xFF8C5224);
-    g.drawRect(ctrl.x - 5, handleY + 3, 10, 6, 0xFFD89A40);
+    g.drawHorizontalGradient(ctrl.x - 6, handleY + 2, 12, 8, 0xFFD89A40, 0xFF8C5224);
 
-    // Glowing LED position indicator
-    drawLedIndicator(g, ctrl.x, state ? (ctrl.y + 10) : (ctrl.y - 10), true, state ? 0xFFFF3300 : 0xFFFF8A00);
+    // Lever highlight ridge
+    g.drawLine(ctrl.x - 5, handleY + 6, ctrl.x + 5, handleY + 6, 0xFFFFCC00, 1);
+
+    // Dual status LEDs (top/bottom)
+    drawLedIndicator(g, ctrl.x, ctrl.y - 11, !state, 0xFFFF8A00);
+    drawLedIndicator(g, ctrl.x, ctrl.y + 11, state, 0xFFFF3300);
 }
 
 void IndustrialGritbaalRenderer::drawPushButton(Graphics& g, const Control& ctrl, const Font& font) {
@@ -228,24 +285,34 @@ void IndustrialGritbaalRenderer::drawPushButton(Graphics& g, const Control& ctrl
     g.drawText(labelX, ctrl.y - 16, ctrl.label, 0xFFD89A40, font, 1);
 
     bool isPressed = (ctrl.currentVal >= 0.5);
-    uint32_t btnColor = isPressed ? 0xFFFF4500 : 0xFF2A2D30;
 
-    g.drawRect(ctrl.x - 14, ctrl.y - 8, 28, 16, 0xFF101214);
+    g.drawRect(ctrl.x - 14, ctrl.y - 8, 28, 16, 0xFF0E1012);
     g.drawRectOutline(ctrl.x - 14, ctrl.y - 8, 28, 16, 0xFF8C5224, 1);
-    g.drawRect(ctrl.x - 12, ctrl.y - 6, 24, 12, btnColor);
 
     if (isPressed) {
+        // Glowing illuminated active button state
+        g.drawRect(ctrl.x - 12, ctrl.y - 6, 24, 12, 0xFFFF4500);
         g.drawRectOutline(ctrl.x - 12, ctrl.y - 6, 24, 12, 0xFFFFCC00, 1);
+        g.drawRect(ctrl.x - 10, ctrl.y - 4, 20, 8, 0xFFFF8A00);
+    } else {
+        // Unpressed metallic cap
+        g.drawVerticalGradient(ctrl.x - 12, ctrl.y - 6, 24, 12, 0xFF3A3D40, 0xFF202326);
+        g.drawRectOutline(ctrl.x - 12, ctrl.y - 6, 24, 12, 0xFF141618, 1);
     }
 }
 
 void IndustrialGritbaalRenderer::drawLedIndicator(Graphics& g, int cx, int cy, bool state, uint32_t activeColor) {
-    g.drawCircle(cx, cy, 4, 0xFF101214);
-    g.drawCircleOutline(cx, cy, 4, 0xFF383C40);
-    uint32_t col = state ? activeColor : 0xFF301008;
-    g.drawCircle(cx, cy, 3, col);
+    // Multi-stage radial ambient glow for illuminated state
     if (state) {
+        g.drawCircle(cx, cy, 6, 0x33FF3300);
+        g.drawCircle(cx, cy, 5, 0x66FF5500);
+        g.drawCircle(cx, cy, 4, activeColor);
+        g.drawCircle(cx, cy, 2, 0xFFFFCC00);
         g.drawRect(cx - 1, cy - 1, 1, 1, 0xFFFFFFFF);
+    } else {
+        g.drawCircle(cx, cy, 4, 0xFF0E1012);
+        g.drawCircleOutline(cx, cy, 4, 0xFF2A2D30);
+        g.drawCircle(cx, cy, 3, 0xFF200A04);
     }
 }
 
