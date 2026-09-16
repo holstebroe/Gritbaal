@@ -32,115 +32,39 @@ void Filter::reset() {
     downBuffer2_.fill(0.0f);
     upIdx1_ = upIdx2_ = downIdx1_ = downIdx2_ = 0;
 
-    ladderV1_ = 0.0f;
-    ladderV2_ = 0.0f;
-    ladderV3_ = 0.0f;
-    ladderV4_ = 0.0f;
-    hpFbStateX1_ = 0.0f;
-    hpFbStateY1_ = 0.0f;
-    prevAccurateInput_ = 0.0f;
-
     skS1_ = 0.0f;
     skS2_ = 0.0f;
 }
 
-float Filter::processCoupledLadderSample(float input, float cutoffHz, float resonance) {
-    // Apply Pre-Filter Drive Stage
-    float drivenInput = std::tanh(input * preDrive_);
-
-    if (filterType_ == FilterType::SallenKey) {
-        return processSallenKeySample(drivenInput, cutoffHz, resonance);
-    }
-
-    // 4x oversampling step for accurate coupled diode ladder
-    float dt = 1.0f / static_cast<float>(oversampledRate_);
-    float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 18000.0f);
-
-    float wc = kTWO_PI_F * totalCutoffHz;
-
-    float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
-    float hpfCutoff = 150.0f + 100.0f * resNorm;
-    float hpfAlpha = 1.0f / (1.0f + kTWO_PI_F * hpfCutoff * dt);
-
-    float kFb = resNorm * 33.0f;
-
-    const float Vt = 0.052f;
-    const float Vt_inv = 19.23f;
-
-    float accOut = 0.0f;
-
-    float prevIn = prevAccurateInput_;
-    prevAccurateInput_ = drivenInput;
-
-    for (int os = 0; os < 4; ++os) {
-        float alphaOS = static_cast<float>(os + 1) / 4.0f;
-        float currIn = prevIn + alphaOS * (drivenInput - prevIn);
-
-        float inSample = currIn * 0.05f;
-
-        float hpOut = hpfAlpha * (hpFbStateY1_ + ladderV4_ - hpFbStateX1_);
-        hpFbStateX1_ = ladderV4_;
-        hpFbStateY1_ = hpOut;
-
-        float u = inSample - hpOut * kFb;
-
-        float h = dt;
-        float v1 = ladderV1_;
-        float v2 = ladderV2_;
-        float v3 = ladderV3_;
-        float v4 = ladderV4_;
-
-        // K1
-        float dv1_1 = wc * Vt * (std::tanh((u - v1) * Vt_inv) - std::tanh((v1 - v2) * Vt_inv));
-        float dv2_1 = wc * Vt * (std::tanh((v1 - v2) * Vt_inv) - std::tanh((v2 - v3) * Vt_inv));
-        float dv3_1 = wc * Vt * (std::tanh((v2 - v3) * Vt_inv) - std::tanh((v3 - v4) * Vt_inv));
-        float dv4_1 = 2.0f * wc * Vt * std::tanh((v3 - v4) * Vt_inv);
-
-        // K2
-        float v1_mid = v1 + 0.5f * h * dv1_1;
-        float v2_mid = v2 + 0.5f * h * dv2_1;
-        float v3_mid = v3 + 0.5f * h * dv3_1;
-        float v4_mid = v4 + 0.5f * h * dv4_1;
-
-        float hpOut_mid = hpfAlpha * (hpFbStateY1_ + v4_mid - hpFbStateX1_);
-        float u_mid = inSample - hpOut_mid * kFb;
-
-        float dv1_2 = wc * Vt * (std::tanh((u_mid - v1_mid) * Vt_inv) - std::tanh((v1_mid - v2_mid) * Vt_inv));
-        float dv2_2 = wc * Vt * (std::tanh((v1_mid - v2_mid) * Vt_inv) - std::tanh((v2_mid - v3_mid) * Vt_inv));
-        float dv3_2 = wc * Vt * (std::tanh((v2_mid - v3_mid) * Vt_inv) - std::tanh((v3_mid - v4_mid) * Vt_inv));
-        float dv4_2 = 2.0f * wc * Vt * std::tanh((v3_mid - v4_mid) * Vt_inv);
-
-        ladderV1_ += h * dv1_2;
-        ladderV2_ += h * dv2_2;
-        ladderV3_ += h * dv3_2;
-        ladderV4_ += h * dv4_2;
-
-        accOut += (ladderV4_ / 0.05f) * 0.25f;
-    }
-
-    return accOut;
-}
-
 float Filter::processSallenKeySample(float input, float cutoffHz, float resonance) {
     // 2-pole Sallen-Key Diode Filter (MS-20 style screaming self-oscillating VCF)
-    float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 18000.0f);
-    float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
+    // Run at oversampled rate
+    float nyquist = static_cast<float>(oversampledRate_ * 0.5);
+    float maxCutoff = std::min(18000.0f, 0.49f * nyquist);
+    float totalCutoffHz = std::clamp(cutoffHz, 20.0f, maxCutoff);
+    float resNorm = std::clamp(resonance, 0.0f, 1.0f);
 
     float wc = kTWO_PI_F * totalCutoffHz;
-    float g = std::tan(wc / (2.0f * static_cast<float>(sampleRate_)));
-    float k = resNorm * 2.2f; // Sallen-Key resonance scaling up to screaming self-oscillation boundary
+    float g = std::tan(wc / (2.0f * static_cast<float>(oversampledRate_)));
+    float k = resNorm * 2.2f; // Sallen-Key resonance scaling up to self-oscillation boundary
 
-    // Diode feedback clipping non-linearity in Sallen-Key loop: y_fb = tanh(k * y2)
+    float A = g / (1.0f + g);
+    float f0 = A * A * input + A * skS1_ / (1.0f + g) + skS2_ / (1.0f + g);
+
+    // Solve y2 using Newton-Raphson: F(y2) = y2 + A^2 * tanh(k * y2) - f0 = 0
     float y2 = skS2_;
-    for (int iter = 0; iter < 3; ++iter) {
-        float satFb = std::tanh(k * y2);
-        float u = input - satFb;
-        float v1 = (g * u + skS1_) / (1.0f + g);
-        float v2 = (g * v1 + skS2_) / (1.0f + g);
-        y2 = v2;
+    for (int iter = 0; iter < 5; ++iter) {
+        float th = std::tanh(k * y2);
+        float fVal = y2 + A * A * th - f0;
+        float fDev = 1.0f + A * A * k * (1.0f - th * th);
+        float step = fVal / fDev;
+        y2 -= step;
+        if (std::abs(step) < 1.0e-6f) {
+            break;
+        }
     }
 
-    // Final state update pass
+    // State updates using converged solution
     float satFb = std::tanh(k * y2);
     float u = input - satFb;
     float v1 = (g * u + skS1_) / (1.0f + g);
@@ -156,9 +80,12 @@ float Filter::processOversampledSample(float input, float cutoffHz, float resona
         return processSallenKeySample(input, cutoffHz, resonance);
     }
 
-    float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 18000.0f);
+    // 4-pole ZDF Transistor Ladder with capacitor mismatch scaling and Newton-Raphson feedback solve
+    float nyquist = static_cast<float>(oversampledRate_ * 0.5);
+    float maxCutoff = std::min(18000.0f, 0.49f * nyquist);
+    float totalCutoffHz = std::clamp(cutoffHz, 20.0f, maxCutoff);
 
-    float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
+    float resNorm = std::clamp(resonance, 0.0f, 1.0f);
     float hpfCutoff = 150.0f + 100.0f * resNorm;
     hpfFeedback_.setCutoff(hpfCutoff);
 
@@ -172,38 +99,44 @@ float Filter::processOversampledSample(float input, float cutoffHz, float resona
     float g3 = gBase * capScale3_;
     float g4 = gBase * capScale4_;
 
-    float savedS1 = stage1_.getState();
-    float savedS2 = stage2_.getState();
-    float savedS3 = stage3_.getState();
-    float savedS4 = stage4_.getState();
-    HPFFeedback::State savedHpfState = hpfFeedback_.getState();
+    float A1 = g1 / (1.0f + g1);
+    float A2 = g2 / (1.0f + g2);
+    float A3 = g3 / (1.0f + g3);
+    float A4 = g4 / (1.0f + g4);
 
-    float hpFb = hpfFeedback_.process(0.0f);
-    float satFb = std::tanh(hpFb * resGain);
-    float x1 = input - satFb;
+    float B1 = stage1_.getState() / (1.0f + g1);
+    float B2 = stage2_.getState() / (1.0f + g2);
+    float B3 = stage3_.getState() / (1.0f + g3);
+    float B4 = stage4_.getState() / (1.0f + g4);
 
-    for (int iter = 0; iter < 3; ++iter) {
-        stage1_.setState(savedS1);
-        stage2_.setState(savedS2);
-        stage3_.setState(savedS3);
-        stage4_.setState(savedS4);
-        hpfFeedback_.setState(savedHpfState);
+    float G_ladder = A4 * A3 * A2 * A1;
+    float S_ladder = A4 * A3 * A2 * B1 + A4 * A3 * B2 + A4 * B3 + B4;
 
-        float y1 = stage1_.process(x1, g1);
-        float y2 = stage2_.process(y1, g2);
-        float y3 = stage3_.process(y2, g3);
-        float y4 = stage4_.process(y3, g4);
+    // HPF feedback linear relationship: hpFb = alpha * (y1_prev + v4 - x1_prev)
+    HPFFeedback::State hpfState = hpfFeedback_.getState();
+    float hpfAlpha = 1.0f / (1.0f + (kTWO_PI_F * hpfCutoff) / (2.0f * static_cast<float>(oversampledRate_)));
+    float hpLinear = hpfAlpha * (hpfState.y1 - hpfState.x1);
 
-        hpFb = hpfFeedback_.process(y4);
-        satFb = std::tanh(hpFb * resGain);
-        x1 = input - satFb;
+    float G_hp = hpfAlpha * G_ladder;
+    float S_hp = hpfAlpha * S_ladder + hpLinear;
+
+    // Solve hpFb using Newton-Raphson: hpFb + G_hp * tanh(resGain * hpFb) - f0 = 0
+    float f0 = G_hp * input + S_hp;
+    float hpFb = hpfState.y1;
+
+    for (int iter = 0; iter < 5; ++iter) {
+        float th = std::tanh(resGain * hpFb);
+        float fVal = hpFb + G_hp * th - f0;
+        float fDev = 1.0f + G_hp * resGain * (1.0f - th * th);
+        float step = fVal / fDev;
+        hpFb -= step;
+        if (std::abs(step) < 1.0e-6f) {
+            break;
+        }
     }
 
-    stage1_.setState(savedS1);
-    stage2_.setState(savedS2);
-    stage3_.setState(savedS3);
-    stage4_.setState(savedS4);
-    hpfFeedback_.setState(savedHpfState);
+    float satFb = std::tanh(resGain * hpFb);
+    float x1 = input - satFb;
 
     float y1 = stage1_.process(x1, g1);
     float y2 = stage2_.process(y1, g2);
@@ -216,7 +149,47 @@ float Filter::processOversampledSample(float input, float cutoffHz, float resona
 }
 
 float Filter::processSample(float input, float cutoffHz, float resonance) {
-    return processCoupledLadderSample(input, cutoffHz, resonance);
+    // Pre-filter drive
+    float drivenInput = std::tanh(input * preDrive_);
+
+    // 4x oversampling with 16-tap polyphase FIR filtering
+    float finalOut = 0.0f;
+
+    for (int os = 0; os < 4; ++os) {
+        // Upsampling step: insert input at os == 0, zero otherwise
+        float upVal = (os == 0) ? drivenInput : 0.0f;
+        upIdx1_ = (upIdx1_ + 1) % FIR_TAPS;
+        upBuffer1_[upIdx1_] = upVal;
+
+        float upSample = 0.0f;
+        for (int tap = 0; tap < FIR_TAPS; ++tap) {
+            int bufIdx = (upIdx1_ - tap + FIR_TAPS) % FIR_TAPS;
+            upSample += upBuffer1_[bufIdx] * FIR_COEFFS[tap];
+        }
+        upSample *= 4.0f; // Gain restoration for 4x zero-stuffing
+
+        // Process single oversampled sample through VCF core
+        float osOut = processOversampledSample(upSample, cutoffHz, resonance);
+
+        // Downsampling step: push to FIR downsampling buffer
+        downIdx1_ = (downIdx1_ + 1) % FIR_TAPS;
+        downBuffer1_[downIdx1_] = osOut;
+
+        if (os == 3) {
+            float downSample = 0.0f;
+            for (int tap = 0; tap < FIR_TAPS; ++tap) {
+                int bufIdx = (downIdx1_ - tap + FIR_TAPS) % FIR_TAPS;
+                downSample += downBuffer1_[bufIdx] * FIR_COEFFS[tap];
+            }
+            finalOut = downSample;
+        }
+    }
+
+    return finalOut;
+}
+
+float Filter::processCoupledLadderSample(float input, float cutoffHz, float resonance) {
+    return processSample(input, cutoffHz, resonance);
 }
 
 } // namespace gritbaal
