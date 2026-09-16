@@ -50,8 +50,6 @@ struct SynthParameters {
     float env2Decay{0.3f};    // 1ms to 5s
     float env2Sustain{0.7f};  // 0.0 to 1.0
     float env2Release{0.3f};  // 1ms to 5s
-    ModTarget env2Target{ModTarget::Amp};
-    float env2Amount{1.0f};    // Bipolar normalized [0, 1] (1.0 = +1.0 full VCA env)
 
     // Dual LFOs
     float lfo1Rate{1.0f};      // 0.05 Hz to 30 Hz
@@ -105,9 +103,17 @@ public:
     Filter& getFilter() { return filter_; }
 
     // Modulated Realtime Values for UI double-arc rendering
-    float getEffectiveCutoffNorm() const { return effectiveCutoffNorm_; }
-    float getEffectivePw1Norm() const { return effectivePw1Norm_; }
-    float getEffectivePw2Norm() const { return effectivePw2Norm_; }
+    float getEffectiveNormForTarget(ModTarget target) const {
+        int idx = static_cast<int>(target);
+        if (idx >= 0 && idx < static_cast<int>(ModTarget::Count)) {
+            return effectiveTargetNorm_[idx];
+        }
+        return 0.5f;
+    }
+
+    float getEffectiveCutoffNorm() const { return effectiveTargetNorm_[static_cast<int>(ModTarget::Cutoff)]; }
+    float getEffectivePw1Norm() const { return effectiveTargetNorm_[static_cast<int>(ModTarget::Pw1)]; }
+    float getEffectivePw2Norm() const { return effectiveTargetNorm_[static_cast<int>(ModTarget::Pw2)]; }
 
 private:
     double sampleRate_{44100.0};
@@ -124,9 +130,7 @@ private:
     bool isNoteActive_{false};
 
     // Effective modulated parameter values for UI feedback
-    float effectiveCutoffNorm_{0.5f};
-    float effectivePw1Norm_{0.5f};
-    float effectivePw2Norm_{0.5f};
+    float effectiveTargetNorm_[static_cast<int>(ModTarget::Count)]{};
 
     // Power Supply Rail Sag Simulation State
     float railVoltage_{1.0f};

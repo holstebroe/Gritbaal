@@ -128,9 +128,6 @@ void GuiWindow::initControls() {
     controls_.push_back({ PARAM_ENV2_S, "ENV2 SUS", ControlType::Knob, 435, 390, 18, 0.0, 1.0, 0.7, false, false, {}, 0.7 });
     controls_.push_back({ PARAM_ENV2_R, "ENV2 REL", ControlType::Knob, 490, 390, 18, 0.0, 1.0, 0.3, false, false, {}, 0.3 });
 
-    controls_.push_back({ PARAM_ENV2_TARGET, "ENV2 TGT", ControlType::ModeSelector, 555, 357, 0, 0.0, 18.0, 14.0, true, false, targetOpts, 14.0 });
-    controls_.push_back({ PARAM_ENV2_AMT, "", ControlType::Knob, 555, 390, 18, 0.0, 1.0, 1.0, false, true, {}, 1.0 });
-
     // 7. OUTPUT & MASTER (x: 765..965, y: 245..465)
     controls_.push_back({ PARAM_WARMTH, "WARMTH", ControlType::Knob, 815, 350, 20, 0.0, 1.0, 0.0, false, false, {}, 0.0 });
     controls_.push_back({ PARAM_VOLUME, "MASTER VOL", ControlType::Knob, 905, 350, 24, 0.0, 1.0, 0.8, false, false, {}, 0.8 });
@@ -226,26 +223,69 @@ void GuiWindow::renderFrame() {
         g.clear(0xFF141517);
     }
 
-    // Fetch modulated parameter values from DSP Engine
-    float effCutoff = plugin_ ? plugin_->getEngine().getEffectiveCutoffNorm() : 0.5f;
-    float effPw1 = plugin_ ? plugin_->getEngine().getEffectivePw1Norm() : 0.5f;
-    float effPw2 = plugin_ ? plugin_->getEngine().getEffectivePw2Norm() : 0.5f;
+    // Helper lambda to query effective normalized value per parameter ID
+    auto getEffectiveVal = [&](int paramId, double curVal) -> float {
+        if (!plugin_) return static_cast<float>(curVal);
+        const auto& eng = plugin_->getEngine();
+        switch (paramId) {
+            case PARAM_CUTOFF:       return eng.getEffectiveNormForTarget(ModTarget::Cutoff);
+            case PARAM_RESONANCE:    return eng.getEffectiveNormForTarget(ModTarget::Resonance);
+            case PARAM_VCO1_PW:      return eng.getEffectiveNormForTarget(ModTarget::Pw1);
+            case PARAM_VCO2_PW:      return eng.getEffectiveNormForTarget(ModTarget::Pw2);
+            case PARAM_VCO2_DETUNE:  return eng.getEffectiveNormForTarget(ModTarget::Detune);
+            case PARAM_FM_AMOUNT:    return eng.getEffectiveNormForTarget(ModTarget::FmAmount);
+            case PARAM_VCO1_VOL:     return eng.getEffectiveNormForTarget(ModTarget::Vco1Vol);
+            case PARAM_VCO2_VOL:     return eng.getEffectiveNormForTarget(ModTarget::Vco2Vol);
+            case PARAM_SUB_VOL:      return eng.getEffectiveNormForTarget(ModTarget::SubVol);
+            case PARAM_RING_MOD:     return eng.getEffectiveNormForTarget(ModTarget::RingMod);
+            case PARAM_NOISE_VOL:    return eng.getEffectiveNormForTarget(ModTarget::NoiseVol);
+            case PARAM_PRE_DRIVE:    return eng.getEffectiveNormForTarget(ModTarget::PreDrive);
+            case PARAM_OVERDRIVE:    return eng.getEffectiveNormForTarget(ModTarget::TubeDrive);
+            case PARAM_VOLUME:       return eng.getEffectiveNormForTarget(ModTarget::Amp);
+            case PARAM_LFO1_RATE:    return eng.getEffectiveNormForTarget(ModTarget::Lfo1Rate);
+            case PARAM_LFO1_DEPTH:   return eng.getEffectiveNormForTarget(ModTarget::Lfo1Amount);
+            case PARAM_LFO2_RATE:    return eng.getEffectiveNormForTarget(ModTarget::Lfo2Rate);
+            case PARAM_LFO2_DEPTH:   return eng.getEffectiveNormForTarget(ModTarget::Lfo2Amount);
+            default:                 return static_cast<float>(curVal);
+        }
+    };
+
+    // Helper function to check if a knob parameter ID maps to a valid ModTarget
+    auto getModTargetForParam = [](int paramId) -> int {
+        switch (paramId) {
+            case PARAM_CUTOFF:       return static_cast<int>(ModTarget::Cutoff);
+            case PARAM_RESONANCE:    return static_cast<int>(ModTarget::Resonance);
+            case PARAM_VCO1_PW:      return static_cast<int>(ModTarget::Pw1);
+            case PARAM_VCO2_PW:      return static_cast<int>(ModTarget::Pw2);
+            case PARAM_VCO2_DETUNE:  return static_cast<int>(ModTarget::Detune);
+            case PARAM_FM_AMOUNT:    return static_cast<int>(ModTarget::FmAmount);
+            case PARAM_VCO1_VOL:     return static_cast<int>(ModTarget::Vco1Vol);
+            case PARAM_VCO2_VOL:     return static_cast<int>(ModTarget::Vco2Vol);
+            case PARAM_SUB_VOL:      return static_cast<int>(ModTarget::SubVol);
+            case PARAM_RING_MOD:     return static_cast<int>(ModTarget::RingMod);
+            case PARAM_NOISE_VOL:    return static_cast<int>(ModTarget::NoiseVol);
+            case PARAM_PRE_DRIVE:    return static_cast<int>(ModTarget::PreDrive);
+            case PARAM_OVERDRIVE:    return static_cast<int>(ModTarget::TubeDrive);
+            case PARAM_VOLUME:       return static_cast<int>(ModTarget::Amp);
+            case PARAM_LFO1_RATE:    return static_cast<int>(ModTarget::Lfo1Rate);
+            case PARAM_LFO1_DEPTH:   return static_cast<int>(ModTarget::Lfo1Amount);
+            case PARAM_LFO2_RATE:    return static_cast<int>(ModTarget::Lfo2Rate);
+            case PARAM_LFO2_DEPTH:   return static_cast<int>(ModTarget::Lfo2Amount);
+            default:                 return -1;
+        }
+    };
 
     // 2. Render Controls
     if (controlRenderer_) {
-        for (const auto& ctrl : controls_) {
+        for (size_t i = 0; i < controls_.size(); ++i) {
+            const auto& ctrl = controls_[i];
             if (ctrl.type == ControlType::Knob) {
-                if (ctrl.id == PARAM_CUTOFF) {
-                    controlRenderer_->drawKnobModulated(g, ctrl, font_, effCutoff);
-                } else if (ctrl.id == PARAM_VCO1_PW) {
-                    controlRenderer_->drawKnobModulated(g, ctrl, font_, effPw1);
-                } else if (ctrl.id == PARAM_VCO2_PW) {
-                    controlRenderer_->drawKnobModulated(g, ctrl, font_, effPw2);
-                } else {
-                    controlRenderer_->drawKnob(g, ctrl, font_);
-                }
+                float effVal = getEffectiveVal(ctrl.id, ctrl.currentVal);
+                bool isHighlight = (targetSelectingControlIndex_ >= 0 && getModTargetForParam(ctrl.id) >= 0);
+                controlRenderer_->drawKnobModulated(g, ctrl, font_, effVal, isHighlight);
             } else if (ctrl.type == ControlType::ModeSelector) {
-                controlRenderer_->drawModeSelector(g, ctrl, font_);
+                bool isSelecting = (targetSelectingControlIndex_ == static_cast<int>(i));
+                controlRenderer_->drawModeSelector(g, ctrl, font_, isSelecting);
             } else if (ctrl.type == ControlType::ToggleSwitch) {
                 controlRenderer_->drawToggleSwitch(g, ctrl, font_);
             } else if (ctrl.type == ControlType::PushButton) {
@@ -283,7 +323,78 @@ void GuiWindow::renderFrame() {
 #endif
 }
 
+void GuiWindow::handleRightClick(int x, int y) {
+    auto getModTargetForParam = [](int paramId) -> int {
+        switch (paramId) {
+            case PARAM_CUTOFF:       return static_cast<int>(ModTarget::Cutoff);
+            case PARAM_RESONANCE:    return static_cast<int>(ModTarget::Resonance);
+            case PARAM_VCO1_PW:      return static_cast<int>(ModTarget::Pw1);
+            case PARAM_VCO2_PW:      return static_cast<int>(ModTarget::Pw2);
+            case PARAM_VCO2_DETUNE:  return static_cast<int>(ModTarget::Detune);
+            case PARAM_FM_AMOUNT:    return static_cast<int>(ModTarget::FmAmount);
+            case PARAM_VCO1_VOL:     return static_cast<int>(ModTarget::Vco1Vol);
+            case PARAM_VCO2_VOL:     return static_cast<int>(ModTarget::Vco2Vol);
+            case PARAM_SUB_VOL:      return static_cast<int>(ModTarget::SubVol);
+            case PARAM_RING_MOD:     return static_cast<int>(ModTarget::RingMod);
+            case PARAM_NOISE_VOL:    return static_cast<int>(ModTarget::NoiseVol);
+            case PARAM_PRE_DRIVE:    return static_cast<int>(ModTarget::PreDrive);
+            case PARAM_OVERDRIVE:    return static_cast<int>(ModTarget::TubeDrive);
+            case PARAM_VOLUME:       return static_cast<int>(ModTarget::Amp);
+            case PARAM_LFO1_RATE:    return static_cast<int>(ModTarget::Lfo1Rate);
+            case PARAM_LFO1_DEPTH:   return static_cast<int>(ModTarget::Lfo1Amount);
+            case PARAM_LFO2_RATE:    return static_cast<int>(ModTarget::Lfo2Rate);
+            case PARAM_LFO2_DEPTH:   return static_cast<int>(ModTarget::Lfo2Amount);
+            default:                 return -1;
+        }
+    };
+
+    for (size_t i = 0; i < controls_.size(); ++i) {
+        auto& ctrl = controls_[i];
+        if (ctrl.type == ControlType::ModeSelector) {
+            if (std::abs(x - ctrl.x) <= 30 && std::abs(y - ctrl.y) <= 12) {
+                if (targetSelectingControlIndex_ == static_cast<int>(i)) {
+                    // Cancel target selection mode
+                    targetSelectingControlIndex_ = -1;
+                } else {
+                    // Enter target selection mode for this ModeSelector
+                    targetSelectingControlIndex_ = static_cast<int>(i);
+                }
+                renderFrame();
+                return;
+            }
+        } else if (ctrl.type == ControlType::Knob) {
+            int dx = x - ctrl.x;
+            int dy = y - ctrl.y;
+            if (dx * dx + dy * dy <= (ctrl.radius + 10) * (ctrl.radius + 10)) {
+                if (targetSelectingControlIndex_ >= 0) {
+                    int targetIdx = getModTargetForParam(ctrl.id);
+                    if (targetIdx >= 0) {
+                        auto& selCtrl = controls_[targetSelectingControlIndex_];
+                        selCtrl.currentVal = static_cast<double>(targetIdx);
+                        if (plugin_) {
+                            plugin_->onParamValueFromGui(selCtrl.id, selCtrl.currentVal);
+                        }
+                    }
+                    targetSelectingControlIndex_ = -1;
+                    renderFrame();
+                    return;
+                }
+            }
+        }
+    }
+
+    // Right clicking anywhere else cancels target selection mode
+    if (targetSelectingControlIndex_ >= 0) {
+        targetSelectingControlIndex_ = -1;
+        renderFrame();
+    }
+}
+
 void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
+    if (targetSelectingControlIndex_ >= 0) {
+        targetSelectingControlIndex_ = -1;
+        renderFrame();
+    }
     lastShiftState_ = isShift;
 
     // Double click detection
@@ -510,7 +621,11 @@ void GuiWindow::eventLoopX11() {
                 drawX11Frame();
             } else if (ev.type == ButtonPress) {
                 bool isShift = (ev.xbutton.state & ShiftMask) != 0;
-                handleMouseDown(ev.xbutton.x, ev.xbutton.y, isShift);
+                if (ev.xbutton.button == Button3) {
+                    handleRightClick(ev.xbutton.x, ev.xbutton.y);
+                } else if (ev.xbutton.button == Button1) {
+                    handleMouseDown(ev.xbutton.x, ev.xbutton.y, isShift);
+                }
             } else if (ev.type == MotionNotify) {
                 if (ev.xmotion.state & Button1Mask) {
                     bool isShift = (ev.xmotion.state & ShiftMask) != 0;
@@ -562,6 +677,14 @@ static LRESULT CALLBACK GritbaalWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPAR
         case WM_TIMER: {
             if (gui) {
                 gui->renderFrame();
+            }
+            return 0;
+        }
+        case WM_RBUTTONDOWN: {
+            if (gui) {
+                int x = LOWORD(lParam);
+                int y = HIWORD(lParam);
+                gui->handleRightClick(x, y);
             }
             return 0;
         }

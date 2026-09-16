@@ -141,8 +141,6 @@ GritbaalClap::GritbaalClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_ENV2_D] = 0.3;
     paramValues_[PARAM_ENV2_S] = 0.7;
     paramValues_[PARAM_ENV2_R] = 0.3;
-    paramValues_[PARAM_ENV2_TARGET] = 4.0; // Amp
-    paramValues_[PARAM_ENV2_AMT] = 1.0; // +1.0 full VCA env
 
     // Dual LFOs
     paramValues_[PARAM_LFO1_RATE] = 0.1;
@@ -235,8 +233,6 @@ void GritbaalClap::syncParamsToEngine() {
     params.env2Decay = 0.001f + static_cast<float>(paramValues_[PARAM_ENV2_D]) * 4.999f;
     params.env2Sustain = static_cast<float>(paramValues_[PARAM_ENV2_S]);
     params.env2Release = 0.001f + static_cast<float>(paramValues_[PARAM_ENV2_R]) * 4.999f;
-    params.env2Target = static_cast<ModTarget>(std::clamp(static_cast<int>(paramValues_[PARAM_ENV2_TARGET] + 0.5), 0, 18));
-    params.env2Amount = static_cast<float>(paramValues_[PARAM_ENV2_AMT]);
 
     // LFO mapping (0.05 Hz to 30 Hz)
     params.lfo1Rate = 0.05f + static_cast<float>(paramValues_[PARAM_LFO1_RATE]) * 29.95f;
@@ -405,8 +401,6 @@ static const ParamDef kParamDefs[PARAM_COUNT] = {
     /* PARAM_ENV2_D        */ { "ENV2 Decay",      "Envelope",  0.0, 1.0,  0.3,  false },
     /* PARAM_ENV2_S        */ { "ENV2 Sustain",    "Envelope",  0.0, 1.0,  0.7,  false },
     /* PARAM_ENV2_R        */ { "ENV2 Release",    "Envelope",  0.0, 1.0,  0.3,  false },
-    /* PARAM_ENV2_TARGET   */ { "ENV2 Target",     "Envelope",  0.0, 18.0, 4.0,  true  },
-    /* PARAM_ENV2_AMT      */ { "ENV2 Amount",     "Envelope",  0.0, 1.0,  1.0,  false },
 
     /* PARAM_LFO1_RATE     */ { "LFO1 Rate",       "LFO",       0.0, 1.0,  0.1,  false },
     /* PARAM_LFO1_TARGET   */ { "LFO1 Target",     "LFO",       0.0, 18.0, 0.0,  true  },
@@ -582,10 +576,10 @@ bool GritbaalClap::paramsValueToText(clap_id paramId, double value, char* outBuf
         double sec = 0.001 + value * 4.999;
         if (sec < 1.0) snprintf(outBuffer, outBufferCapacity, "%.0f ms", sec * 1000.0);
         else snprintf(outBuffer, outBufferCapacity, "%.2f s", sec);
-    } else if (paramId == PARAM_ENV1_AMT || paramId == PARAM_ENV2_AMT || paramId == PARAM_LFO1_DEPTH || paramId == PARAM_LFO2_DEPTH) {
+    } else if (paramId == PARAM_ENV1_AMT || paramId == PARAM_LFO1_DEPTH || paramId == PARAM_LFO2_DEPTH) {
         double bipolarPct = (value - 0.5) * 200.0;
         snprintf(outBuffer, outBufferCapacity, "%+.0f %%", bipolarPct);
-    } else if (paramId == PARAM_ENV1_TARGET || paramId == PARAM_ENV2_TARGET || paramId == PARAM_LFO1_TARGET || paramId == PARAM_LFO2_TARGET) {
+    } else if (paramId == PARAM_ENV1_TARGET || paramId == PARAM_LFO1_TARGET || paramId == PARAM_LFO2_TARGET) {
         int idx = std::clamp(static_cast<int>(value + 0.5), 0, 18);
         snprintf(outBuffer, outBufferCapacity, "%s", kTargetNames[idx]);
     } else if (paramId == PARAM_LFO1_RATE) {

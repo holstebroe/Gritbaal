@@ -14,10 +14,10 @@
 namespace gritbaal {
 
 void IndustrialGritbaalRenderer::drawKnob(Graphics& g, const Control& knob, const Font& font) {
-    drawKnobModulated(g, knob, font, knob.currentVal);
+    drawKnobModulated(g, knob, font, knob.currentVal, false);
 }
 
-void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& knob, const Font& font, double modValNorm) {
+void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& knob, const Font& font, double modValNorm, bool isTargetHighlight) {
     // 1. Label centered above knob (if non-empty)
     if (knob.label && strlen(knob.label) > 0) {
         int labelLen = static_cast<int>(strlen(knob.label));
@@ -85,9 +85,13 @@ void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& k
     int maxY2 = knob.y + static_cast<int>(std::sin(endAngle) * rOut);
     g.drawLine(maxX1, maxY1, maxX2, maxY2, 0xFF8C5224, 1);
 
-    // 3. Knob Outer Bezel (Copper / Heavy Dark Steel)
+    // 3. Knob Outer Bezel (Copper / Heavy Dark Steel or Target Selection Highlight)
+    if (isTargetHighlight) {
+        g.drawCircle(knob.x, knob.y, knob.radius + 3, 0xFF00E5FF);
+        g.drawCircleOutline(knob.x, knob.y, knob.radius + 4, 0xFF00FFFF);
+    }
     g.drawCircle(knob.x + 1, knob.y + 1, knob.radius + 2, 0xFF0A0B0C);
-    g.drawCircle(knob.x, knob.y, knob.radius + 1, 0xFF8C5224);
+    g.drawCircle(knob.x, knob.y, knob.radius + 1, isTargetHighlight ? 0xFF00E5FF : 0xFF8C5224);
 
     // 4. Knob Body (Industrial Dark Gunmetal & Heavy Knurling)
     g.drawCircle(knob.x, knob.y, knob.radius, 0xFF24272A);
@@ -115,7 +119,7 @@ void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& k
     g.drawCircle(ptrX, ptrY, 1, 0xFFFFCC00);
 }
 
-void IndustrialGritbaalRenderer::drawModeSelector(Graphics& g, const Control& ctrl, const Font& font) {
+void IndustrialGritbaalRenderer::drawModeSelector(Graphics& g, const Control& ctrl, const Font& font, bool isSelectingTarget) {
     int idx = std::clamp(static_cast<int>(ctrl.currentVal + 0.5), 0, static_cast<int>(ctrl.options.size()) - 1);
     const char* text = (idx >= 0 && idx < static_cast<int>(ctrl.options.size())) ? ctrl.options[idx].c_str() : "";
 
@@ -124,12 +128,16 @@ void IndustrialGritbaalRenderer::drawModeSelector(Graphics& g, const Control& ct
     int bx = ctrl.x - w / 2;
     int by = ctrl.y - h / 2;
 
-    g.drawRect(bx, by, w, h, 0xFF0E1012);
-    g.drawRectOutline(bx, by, w, h, 0xFF8C5224, 1);
+    uint32_t bgCol = isSelectingTarget ? 0xFF003344 : 0xFF0E1012;
+    uint32_t borderCol = isSelectingTarget ? 0xFF00E5FF : 0xFF8C5224;
+    uint32_t textCol = isSelectingTarget ? 0xFF00E5FF : 0xFFFFCC00;
+
+    g.drawRect(bx, by, w, h, bgCol);
+    g.drawRectOutline(bx, by, w, h, borderCol, isSelectingTarget ? 2 : 1);
 
     int textLen = static_cast<int>(strlen(text));
     int textX = ctrl.x - (textLen * (font.getWidth() + 1)) / 2;
-    g.drawText(textX, ctrl.y - 3, text, 0xFFFFCC00, font, 1);
+    g.drawText(textX, ctrl.y - 3, text, textCol, font, 1);
 }
 
 void IndustrialGritbaalRenderer::drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) {
