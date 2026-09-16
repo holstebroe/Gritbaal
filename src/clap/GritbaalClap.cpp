@@ -126,27 +126,34 @@ GritbaalClap::GritbaalClap(const clap_host_t* host) : host_(host) {
     // Initialize default parameter values
     paramValues_[PARAM_CUTOFF] = 0.5;
     paramValues_[PARAM_RESONANCE] = 0.5;
-    paramValues_[PARAM_ENV_MOD] = 0.5;
     paramValues_[PARAM_WAVEFORM] = 0.0; // 0 = Saw, 1 = Square
     paramValues_[PARAM_VOLUME] = 0.8;
-    paramValues_[PARAM_MODE] = 0.0; // 0 = Accurate, 1 = Simplified
 
     // Dual ADSR Envelopes
     paramValues_[PARAM_ENV1_A] = 0.01;
     paramValues_[PARAM_ENV1_D] = 0.3;
     paramValues_[PARAM_ENV1_S] = 0.4;
     paramValues_[PARAM_ENV1_R] = 0.3;
+    paramValues_[PARAM_ENV1_TARGET] = 0.0; // Cutoff
+    paramValues_[PARAM_ENV1_AMT] = 0.75; // +0.5 positive mod
 
     paramValues_[PARAM_ENV2_A] = 0.01;
     paramValues_[PARAM_ENV2_D] = 0.3;
     paramValues_[PARAM_ENV2_S] = 0.7;
     paramValues_[PARAM_ENV2_R] = 0.3;
+    paramValues_[PARAM_ENV2_TARGET] = 4.0; // Amp
+    paramValues_[PARAM_ENV2_AMT] = 1.0; // +1.0 full VCA env
 
     // Dual LFOs
     paramValues_[PARAM_LFO1_RATE] = 0.1;
-    paramValues_[PARAM_LFO1_DEPTH] = 0.0;
+    paramValues_[PARAM_LFO1_TARGET] = 0.0; // Cutoff
+    paramValues_[PARAM_LFO1_DEPTH] = 0.5; // 0 depth
+    paramValues_[PARAM_LFO1_SYNC] = 0.0;
+
     paramValues_[PARAM_LFO2_RATE] = 0.1;
-    paramValues_[PARAM_LFO2_DEPTH] = 0.0;
+    paramValues_[PARAM_LFO2_TARGET] = 3.0; // PW
+    paramValues_[PARAM_LFO2_DEPTH] = 0.5; // 0 depth
+    paramValues_[PARAM_LFO2_SYNC] = 0.0;
 
     paramValues_[PARAM_VCO1_WAVE] = 0.0;
     paramValues_[PARAM_VCO1_PW] = 0.5;
@@ -213,27 +220,34 @@ void GritbaalClap::syncParamsToEngine() {
     auto& params = engine_.getParams();
     params.cutoff = static_cast<float>(paramValues_[PARAM_CUTOFF]);
     params.resonance = static_cast<float>(paramValues_[PARAM_RESONANCE]);
-    params.envMod = static_cast<float>(paramValues_[PARAM_ENV_MOD]);
     params.waveform = (paramValues_[PARAM_WAVEFORM] >= 0.5) ? Waveform::Square : Waveform::Saw;
     params.masterVolume = static_cast<float>(paramValues_[PARAM_VOLUME]);
-    params.mode = (paramValues_[PARAM_MODE] >= 0.5) ? EmulationMode::Simplified : EmulationMode::Accurate;
 
-    // Dual ADSR mapping (1ms to 3s for attack, 1ms to 5s for decay/release)
+    // Dual ADSR mapping
     params.env1Attack = 0.001f + static_cast<float>(paramValues_[PARAM_ENV1_A]) * 2.999f;
     params.env1Decay = 0.001f + static_cast<float>(paramValues_[PARAM_ENV1_D]) * 4.999f;
     params.env1Sustain = static_cast<float>(paramValues_[PARAM_ENV1_S]);
     params.env1Release = 0.001f + static_cast<float>(paramValues_[PARAM_ENV1_R]) * 4.999f;
+    params.env1Target = static_cast<ModTarget>(std::clamp(static_cast<int>(paramValues_[PARAM_ENV1_TARGET] + 0.5), 0, 18));
+    params.env1Amount = static_cast<float>(paramValues_[PARAM_ENV1_AMT]);
 
     params.env2Attack = 0.001f + static_cast<float>(paramValues_[PARAM_ENV2_A]) * 2.999f;
     params.env2Decay = 0.001f + static_cast<float>(paramValues_[PARAM_ENV2_D]) * 4.999f;
     params.env2Sustain = static_cast<float>(paramValues_[PARAM_ENV2_S]);
     params.env2Release = 0.001f + static_cast<float>(paramValues_[PARAM_ENV2_R]) * 4.999f;
+    params.env2Target = static_cast<ModTarget>(std::clamp(static_cast<int>(paramValues_[PARAM_ENV2_TARGET] + 0.5), 0, 18));
+    params.env2Amount = static_cast<float>(paramValues_[PARAM_ENV2_AMT]);
 
     // LFO mapping (0.05 Hz to 30 Hz)
     params.lfo1Rate = 0.05f + static_cast<float>(paramValues_[PARAM_LFO1_RATE]) * 29.95f;
+    params.lfo1Target = static_cast<ModTarget>(std::clamp(static_cast<int>(paramValues_[PARAM_LFO1_TARGET] + 0.5), 0, 18));
     params.lfo1Depth = static_cast<float>(paramValues_[PARAM_LFO1_DEPTH]);
+    params.lfo1Sync = (paramValues_[PARAM_LFO1_SYNC] >= 0.5);
+
     params.lfo2Rate = 0.05f + static_cast<float>(paramValues_[PARAM_LFO2_RATE]) * 29.95f;
+    params.lfo2Target = static_cast<ModTarget>(std::clamp(static_cast<int>(paramValues_[PARAM_LFO2_TARGET] + 0.5), 0, 18));
     params.lfo2Depth = static_cast<float>(paramValues_[PARAM_LFO2_DEPTH]);
+    params.lfo2Sync = (paramValues_[PARAM_LFO2_SYNC] >= 0.5);
 
     params.vco1PulseWidth = static_cast<float>(paramValues_[PARAM_VCO1_PW]);
     params.vco2PulseWidth = static_cast<float>(paramValues_[PARAM_VCO2_PW]);
@@ -279,16 +293,14 @@ void GritbaalClap::handleEvent(const clap_event_header_t* header) {
             clap_id paramId = PARAM_COUNT;
             if (data1 == MIDI_PARAM_CUTOFF) paramId = PARAM_CUTOFF;
             else if (data1 == MIDI_PARAM_RESONANCE) paramId = PARAM_RESONANCE;
-            else if (data1 == MIDI_PARAM_ENV_MOD) paramId = PARAM_ENV_MOD;
             else if (data1 == MIDI_PARAM_ENV1_D) paramId = PARAM_ENV1_D;
             else if (data1 == MIDI_PARAM_WARMTH) paramId = PARAM_WARMTH;
             else if (data1 == MIDI_PARAM_WAVEFORM) paramId = PARAM_WAVEFORM;
             else if (data1 == MIDI_PARAM_VOLUME) paramId = PARAM_VOLUME;
-            else if (data1 == MIDI_PARAM_MODE) paramId = PARAM_MODE;
 
             if (paramId < PARAM_COUNT) {
                 double normVal = static_cast<double>(data2) / 127.0;
-                if (paramId == PARAM_WAVEFORM || paramId == PARAM_MODE) {
+                if (paramId == PARAM_WAVEFORM) {
                     normVal = (data2 >= 64) ? 1.0 : 0.0;
                 }
                 paramValues_[paramId] = normVal;
@@ -389,13 +401,6 @@ bool GritbaalClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo)
             paramInfo->max_value = 1.0;
             paramInfo->default_value = 0.5;
             break;
-        case PARAM_ENV_MOD:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Env Mod");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Filter");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.5;
-            break;
         case PARAM_ENV1_A:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV1 Attack");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
@@ -423,6 +428,21 @@ bool GritbaalClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo)
             paramInfo->min_value = 0.0;
             paramInfo->max_value = 1.0;
             paramInfo->default_value = 0.3;
+            break;
+        case PARAM_ENV1_TARGET:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV1 Target");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
+            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 18.0;
+            paramInfo->default_value = 0.0;
+            break;
+        case PARAM_ENV1_AMT:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV1 Amount");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.75;
             break;
         case PARAM_ENV2_A:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV2 Attack");
@@ -452,6 +472,21 @@ bool GritbaalClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo)
             paramInfo->max_value = 1.0;
             paramInfo->default_value = 0.3;
             break;
+        case PARAM_ENV2_TARGET:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV2 Target");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
+            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 18.0;
+            paramInfo->default_value = 4.0;
+            break;
+        case PARAM_ENV2_AMT:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV2 Amount");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 1.0;
+            break;
         case PARAM_LFO1_RATE:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO1 Rate");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "LFO");
@@ -459,9 +494,25 @@ bool GritbaalClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo)
             paramInfo->max_value = 1.0;
             paramInfo->default_value = 0.1;
             break;
-        case PARAM_LFO1_DEPTH:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO1 Depth");
+        case PARAM_LFO1_TARGET:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO1 Target");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "LFO");
+            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 18.0;
+            paramInfo->default_value = 0.0;
+            break;
+        case PARAM_LFO1_DEPTH:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO1 Amount");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "LFO");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.5;
+            break;
+        case PARAM_LFO1_SYNC:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO1 Sync");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "LFO");
+            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
             paramInfo->min_value = 0.0;
             paramInfo->max_value = 1.0;
             paramInfo->default_value = 0.0;
@@ -473,9 +524,25 @@ bool GritbaalClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo)
             paramInfo->max_value = 1.0;
             paramInfo->default_value = 0.1;
             break;
-        case PARAM_LFO2_DEPTH:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO2 Depth");
+        case PARAM_LFO2_TARGET:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO2 Target");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "LFO");
+            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 18.0;
+            paramInfo->default_value = 3.0;
+            break;
+        case PARAM_LFO2_DEPTH:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO2 Amount");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "LFO");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.5;
+            break;
+        case PARAM_LFO2_SYNC:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO2 Sync");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "LFO");
+            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
             paramInfo->min_value = 0.0;
             paramInfo->max_value = 1.0;
             paramInfo->default_value = 0.0;
@@ -494,14 +561,6 @@ bool GritbaalClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo)
             paramInfo->min_value = 0.0;
             paramInfo->max_value = 1.0;
             paramInfo->default_value = 0.8;
-            break;
-        case PARAM_MODE:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Engine Mode");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Main");
-            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0; // 0 = Accurate, 1 = Simplified
             break;
         case PARAM_VCO1_WAVE:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO1 Wave");
@@ -727,17 +786,72 @@ void GritbaalClap::pushPendingOutputEvents(const clap_output_events_t* out) {
     }
 }
 
+static const char* kNoteFractions[] = {
+    "1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1/1", "2/1", "4/1", "8/1"
+};
+static const char* kTargetNames[] = {
+    "CUTOFF", "RESON", "PITCH", "PW1", "PW2", "DETUNE", "FM",
+    "V1VOL", "V2VOL", "SUBVOL", "RINGMOD", "NOISE", "PREDRV", "TUBEDRV",
+    "AMP", "LFO1R", "LFO1A", "LFO2R", "LFO2A"
+};
+
 bool GritbaalClap::paramsValueToText(clap_id paramId, double value, char* outBuffer, uint32_t outBufferCapacity) {
     if (paramId >= PARAM_COUNT || !outBuffer || outBufferCapacity == 0) return false;
 
     if (paramId == PARAM_CUTOFF) {
         double norm = std::min(std::max(value, 0.0), 1.0);
-        double hz = 200.0 * std::pow(12.5, norm);
-        snprintf(outBuffer, outBufferCapacity, "%.1f Hz", hz);
-    } else if (paramId == PARAM_WAVEFORM) {
+        double hz = 20.0 * std::pow(800.0, norm);
+        if (hz >= 1000.0) {
+            snprintf(outBuffer, outBufferCapacity, "%.2f kHz", hz / 1000.0);
+        } else {
+            snprintf(outBuffer, outBufferCapacity, "%.1f Hz", hz);
+        }
+    } else if (paramId == PARAM_RESONANCE || paramId == PARAM_VCO1_PW || paramId == PARAM_VCO2_PW ||
+               paramId == PARAM_VOLUME || paramId == PARAM_FM_AMOUNT || paramId == PARAM_VCO1_VOL ||
+               paramId == PARAM_VCO2_VOL || paramId == PARAM_RING_MOD || paramId == PARAM_SUB_VOL ||
+               paramId == PARAM_NOISE_VOL || paramId == PARAM_PRE_DRIVE || paramId == PARAM_OVERDRIVE ||
+               paramId == PARAM_WARMTH || paramId == PARAM_THERMAL_DRIFT || paramId == PARAM_POWER_SAG ||
+               paramId == PARAM_ENV1_S || paramId == PARAM_ENV2_S) {
+        snprintf(outBuffer, outBufferCapacity, "%.0f %%", value * 100.0);
+    } else if (paramId == PARAM_VCO2_DETUNE) {
+        double st = (value - 0.5) * 48.0;
+        snprintf(outBuffer, outBufferCapacity, "%+.1f st", st);
+    } else if (paramId == PARAM_ENV1_A || paramId == PARAM_ENV2_A) {
+        double sec = 0.001 + value * 2.999;
+        if (sec < 1.0) snprintf(outBuffer, outBufferCapacity, "%.0f ms", sec * 1000.0);
+        else snprintf(outBuffer, outBufferCapacity, "%.2f s", sec);
+    } else if (paramId == PARAM_ENV1_D || paramId == PARAM_ENV1_R || paramId == PARAM_ENV2_D || paramId == PARAM_ENV2_R) {
+        double sec = 0.001 + value * 4.999;
+        if (sec < 1.0) snprintf(outBuffer, outBufferCapacity, "%.0f ms", sec * 1000.0);
+        else snprintf(outBuffer, outBufferCapacity, "%.2f s", sec);
+    } else if (paramId == PARAM_ENV1_AMT || paramId == PARAM_ENV2_AMT || paramId == PARAM_LFO1_DEPTH || paramId == PARAM_LFO2_DEPTH) {
+        double bipolarPct = (value - 0.5) * 200.0;
+        snprintf(outBuffer, outBufferCapacity, "%+.0f %%", bipolarPct);
+    } else if (paramId == PARAM_ENV1_TARGET || paramId == PARAM_ENV2_TARGET || paramId == PARAM_LFO1_TARGET || paramId == PARAM_LFO2_TARGET) {
+        int idx = std::clamp(static_cast<int>(value + 0.5), 0, 18);
+        snprintf(outBuffer, outBufferCapacity, "%s", kTargetNames[idx]);
+    } else if (paramId == PARAM_LFO1_RATE) {
+        if (paramValues_[PARAM_LFO1_SYNC] >= 0.5) {
+            int idx = std::clamp(static_cast<int>(value * 11.99), 0, 11);
+            snprintf(outBuffer, outBufferCapacity, "%s", kNoteFractions[idx]);
+        } else {
+            double hz = 0.05 + value * 29.95;
+            snprintf(outBuffer, outBufferCapacity, "%.2f Hz", hz);
+        }
+    } else if (paramId == PARAM_LFO2_RATE) {
+        if (paramValues_[PARAM_LFO2_SYNC] >= 0.5) {
+            int idx = std::clamp(static_cast<int>(value * 11.99), 0, 11);
+            snprintf(outBuffer, outBufferCapacity, "%s", kNoteFractions[idx]);
+        } else {
+            double hz = 0.05 + value * 29.95;
+            snprintf(outBuffer, outBufferCapacity, "%.2f Hz", hz);
+        }
+    } else if (paramId == PARAM_LFO1_SYNC || paramId == PARAM_LFO2_SYNC || paramId == PARAM_HARD_SYNC) {
+        snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "ON" : "OFF");
+    } else if (paramId == PARAM_WAVEFORM || paramId == PARAM_VCO1_WAVE || paramId == PARAM_VCO2_WAVE) {
         snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Square" : "Saw");
-    } else if (paramId == PARAM_MODE) {
-        snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Simplified" : "Accurate");
+    } else if (paramId == PARAM_FILTER_TYPE) {
+        snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Sallen-Key" : "Ladder");
     } else {
         snprintf(outBuffer, outBufferCapacity, "%.2f", value);
     }
@@ -746,27 +860,12 @@ bool GritbaalClap::paramsValueToText(clap_id paramId, double value, char* outBuf
 
 bool GritbaalClap::paramsTextToValue(clap_id paramId, const char* paramValueText, double* outValue) {
     if (paramId >= PARAM_COUNT || !paramValueText || !outValue) return false;
-    if (paramId == PARAM_WAVEFORM) {
+    if (paramId == PARAM_WAVEFORM || paramId == PARAM_VCO1_WAVE || paramId == PARAM_VCO2_WAVE) {
         if (std::strstr(paramValueText, "Square") || std::strstr(paramValueText, "square")) {
             *outValue = 1.0;
         } else {
             *outValue = 0.0;
         }
-        return true;
-    }
-    if (paramId == PARAM_MODE) {
-        if (std::strstr(paramValueText, "Simplified") || std::strstr(paramValueText, "simplified")) {
-            *outValue = 1.0;
-        } else {
-            *outValue = 0.0;
-        }
-        return true;
-    }
-    if (paramId == PARAM_CUTOFF) {
-        double hz = std::atof(paramValueText);
-        if (hz <= 200.0) *outValue = 0.0;
-        else if (hz >= 2500.0) *outValue = 1.0;
-        else *outValue = std::log(hz / 200.0) / std::log(12.5);
         return true;
     }
     *outValue = std::atof(paramValueText);

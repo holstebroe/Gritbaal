@@ -14,6 +14,7 @@ public:
     void drawKnobModulated(Graphics& g, const Control& knob, const Font& font, double modValNorm) override {
         drawKnob(g, knob, font);
     }
+    void drawModeSelector(Graphics& g, const Control& ctrl, const Font& font) override;
     void drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) override;
     void drawPushButton(Graphics& g, const Control& ctrl, const Font& font) override;
     void drawLedIndicator(Graphics& g, int cx, int cy, bool state, uint32_t activeColor = 0xFFFF0000) override;
@@ -26,6 +27,7 @@ public:
 
     void drawKnob(Graphics& g, const Control& knob, const Font& font) override;
     void drawKnobModulated(Graphics& g, const Control& knob, const Font& font, double modValNorm) override;
+    void drawModeSelector(Graphics& g, const Control& ctrl, const Font& font) override;
     void drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) override;
     void drawPushButton(Graphics& g, const Control& ctrl, const Font& font) override;
     void drawLedIndicator(Graphics& g, int cx, int cy, bool state, uint32_t activeColor = 0xFFFF3300) override;

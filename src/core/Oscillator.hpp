@@ -46,6 +46,7 @@ public:
     void setNoiseType(NoiseType type) { noiseType_ = type; }
     void setThermalDriftAmount(double amount) { thermalDrift_ = amount; }
     void setVoiceMismatchCents(double cents) { mismatchCents_ = cents; }
+    void setPitchModulationSemitones(double semitones) { pitchModSemitones_ = semitones; }
 
     void noteOn(int noteNumber, bool slide);
     void noteOff();
@@ -73,6 +74,7 @@ private:
     NoiseType noiseType_{NoiseType::Crackle};
     double thermalDrift_{0.1}; // Thermal pitch walk scaling
     double mismatchCents_{0.0};
+    double pitchModSemitones_{0.0};
 
     // Oscillator States
     double phase1_{0.0};

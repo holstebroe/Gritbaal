@@ -216,72 +216,7 @@ float Filter::processOversampledSample(float input, float cutoffHz, float resona
 }
 
 float Filter::processSample(float input, float cutoffHz, float resonance) {
-    float drivenInput = std::tanh(input * preDrive_);
-
-    if (filterType_ == FilterType::SallenKey) {
-        return processSallenKeySample(drivenInput, cutoffHz, resonance);
-    }
-
-    float oversampledSamples[4];
-
-    for (int i = 0; i < 2; ++i) {
-        float inVal = (i == 0) ? drivenInput * 2.0f : 0.0f;
-        upBuffer1_[upIdx1_] = inVal;
-
-        float stage1Out = 0.0f;
-        for (int tap = 0; tap < FIR_TAPS; ++tap) {
-            int idx = (upIdx1_ - tap + FIR_TAPS) % FIR_TAPS;
-            stage1Out += upBuffer1_[idx] * FIR_COEFFS[tap];
-        }
-        upIdx1_ = (upIdx1_ + 1) % FIR_TAPS;
-
-        for (int j = 0; j < 2; ++j) {
-            float inVal2 = (j == 0) ? stage1Out * 2.0f : 0.0f;
-            upBuffer2_[upIdx2_] = inVal2;
-
-            float stage2Out = 0.0f;
-            for (int tap = 0; tap < FIR_TAPS; ++tap) {
-                int idx = (upIdx2_ - tap + FIR_TAPS) % FIR_TAPS;
-                stage2Out += upBuffer2_[idx] * FIR_COEFFS[tap];
-            }
-            upIdx2_ = (upIdx2_ + 1) % FIR_TAPS;
-
-            oversampledSamples[i * 2 + j] = stage2Out;
-        }
-    }
-
-    float filterOut[4];
-    for (int k = 0; k < 4; ++k) {
-        filterOut[k] = processOversampledSample(oversampledSamples[k], cutoffHz, resonance);
-    }
-
-    float downStage1[2];
-    for (int k = 0; k < 2; ++k) {
-        downBuffer1_[downIdx1_] = filterOut[k * 2];
-        downIdx1_ = (downIdx1_ + 1) % FIR_TAPS;
-        downBuffer1_[downIdx1_] = filterOut[k * 2 + 1];
-        downIdx1_ = (downIdx1_ + 1) % FIR_TAPS;
-
-        float outVal = 0.0f;
-        for (int tap = 0; tap < FIR_TAPS; ++tap) {
-            int idx = (downIdx1_ - 1 - tap + FIR_TAPS) % FIR_TAPS;
-            outVal += downBuffer1_[idx] * FIR_COEFFS[tap];
-        }
-        downStage1[k] = outVal;
-    }
-
-    downBuffer2_[downIdx2_] = downStage1[0];
-    downIdx2_ = (downIdx2_ + 1) % FIR_TAPS;
-    downBuffer2_[downIdx2_] = downStage1[1];
-    downIdx2_ = (downIdx2_ + 1) % FIR_TAPS;
-
-    float finalOut = 0.0f;
-    for (int tap = 0; tap < FIR_TAPS; ++tap) {
-        int idx = (downIdx2_ - 1 - tap + FIR_TAPS) % FIR_TAPS;
-        finalOut += downBuffer2_[idx] * FIR_COEFFS[tap];
-    }
-
-    return finalOut;
+    return processAccurateSample(input, cutoffHz, resonance);
 }
 
 } // namespace gritbaal

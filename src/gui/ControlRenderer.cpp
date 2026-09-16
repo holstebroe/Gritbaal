@@ -77,6 +77,17 @@ void TB303ControlRenderer::drawKnob(Graphics& g, const Control& knob, const Font
     g.drawCircle(ptrX, ptrY, 1, 0xFF101010);
 }
 
+void TB303ControlRenderer::drawModeSelector(Graphics& g, const Control& ctrl, const Font& font) {
+    int idx = std::clamp(static_cast<int>(ctrl.currentVal + 0.5), 0, static_cast<int>(ctrl.options.size()) - 1);
+    const char* text = (idx >= 0 && idx < static_cast<int>(ctrl.options.size())) ? ctrl.options[idx].c_str() : "";
+
+    g.drawRect(ctrl.x - 26, ctrl.y - 8, 52, 16, 0xFF101010);
+    g.drawRectOutline(ctrl.x - 26, ctrl.y - 8, 52, 16, 0xFF808488, 1);
+    int textLen = static_cast<int>(strlen(text));
+    int textX = ctrl.x - (textLen * (font.getWidth() + 1)) / 2;
+    g.drawText(textX, ctrl.y - 4, text, 0xFFE0E4E8, font, 1);
+}
+
 void TB303ControlRenderer::drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) {
     // Label above switch
     int labelLen = static_cast<int>(strlen(ctrl.label));
@@ -128,10 +139,12 @@ void IndustrialGritbaalRenderer::drawKnob(Graphics& g, const Control& knob, cons
 }
 
 void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& knob, const Font& font, double modValNorm) {
-    // 1. Label centered above knob (Amber/Gold glow color on dark plate)
-    int labelLen = static_cast<int>(strlen(knob.label));
-    int labelX = knob.x - (labelLen * (font.getWidth() + 1)) / 2;
-    g.drawText(labelX, knob.y - knob.radius - 18, knob.label, 0xFFD89A40, font, 1);
+    // 1. Label centered above knob (if non-empty)
+    if (knob.label && strlen(knob.label) > 0) {
+        int labelLen = static_cast<int>(strlen(knob.label));
+        int labelX = knob.x - (labelLen * (font.getWidth() + 1)) / 2;
+        g.drawText(labelX, knob.y - knob.radius - 18, knob.label, 0xFFD89A40, font, 1);
+    }
 
     // 2. Volcanic Amber Glow Arc around knob track
     double startAngle = 135.0 * M_PI / 180.0;
@@ -143,15 +156,39 @@ void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& k
 
     // Background track arc (Dark Copper)
     g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(startAngle), static_cast<float>(startAngle + totalAngle), 0xFF3A2010, 2);
-    // Active base track arc (Glowing Volcanic Orange/Red)
-    if (normVal > 0.01) {
-        g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(startAngle), static_cast<float>(activeAngle), 0xFFFF4500, 2);
-    }
 
-    // Second Arc: Realtime Modulated Position (Bright Neon Cyan/Yellow glow)
-    double mNorm = std::clamp(modValNorm, 0.0, 1.0);
-    double modAngle = startAngle + mNorm * totalAngle;
-    g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(startAngle), static_cast<float>(modAngle), 0xFF00E5FF, 2);
+    if (knob.isBipolar) {
+        double centerAngle = startAngle + 0.5 * totalAngle;
+        if (normVal > 0.501) {
+            g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(centerAngle), static_cast<float>(activeAngle), 0xFFFF4500, 2);
+        } else if (normVal < 0.499) {
+            g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(activeAngle), static_cast<float>(centerAngle), 0xFFFF4500, 2);
+        }
+        int rIn = knob.radius + 4;
+        int rOut = knob.radius + 7;
+        int midX1 = knob.x + static_cast<int>(std::cos(centerAngle) * rIn);
+        int midY1 = knob.y + static_cast<int>(std::sin(centerAngle) * rIn);
+        int midX2 = knob.x + static_cast<int>(std::cos(centerAngle) * rOut);
+        int midY2 = knob.y + static_cast<int>(std::sin(centerAngle) * rOut);
+        g.drawLine(midX1, midY1, midX2, midY2, 0xFFFF8A00, 1);
+
+        // Secondary Modulated Arc for Bipolar Knobs (starts from 12 o'clock center)
+        double mNorm = std::clamp(modValNorm, 0.0, 1.0);
+        double modAngle = startAngle + mNorm * totalAngle;
+        if (mNorm > 0.501) {
+            g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(centerAngle), static_cast<float>(modAngle), 0xFF00E5FF, 2);
+        } else if (mNorm < 0.499) {
+            g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(modAngle), static_cast<float>(centerAngle), 0xFF00E5FF, 2);
+        }
+    } else {
+        if (normVal > 0.01) {
+            g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(startAngle), static_cast<float>(activeAngle), 0xFFFF4500, 2);
+        }
+        // Second Arc: Realtime Modulated Position
+        double mNorm = std::clamp(modValNorm, 0.0, 1.0);
+        double modAngle = startAngle + mNorm * totalAngle;
+        g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(startAngle), static_cast<float>(modAngle), 0xFF00E5FF, 2);
+    }
 
     // Tick marks at minimum and maximum
     int rIn = knob.radius + 4;
@@ -197,6 +234,23 @@ void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& k
 
     g.drawLine(knob.x, knob.y, ptrX, ptrY, 0xFFFF3300, 2);
     g.drawCircle(ptrX, ptrY, 1, 0xFFFFCC00);
+}
+
+void IndustrialGritbaalRenderer::drawModeSelector(Graphics& g, const Control& ctrl, const Font& font) {
+    int idx = std::clamp(static_cast<int>(ctrl.currentVal + 0.5), 0, static_cast<int>(ctrl.options.size()) - 1);
+    const char* text = (idx >= 0 && idx < static_cast<int>(ctrl.options.size())) ? ctrl.options[idx].c_str() : "";
+
+    int w = 54;
+    int h = 16;
+    int bx = ctrl.x - w / 2;
+    int by = ctrl.y - h / 2;
+
+    g.drawRect(bx, by, w, h, 0xFF0E1012);
+    g.drawRectOutline(bx, by, w, h, 0xFF8C5224, 1);
+
+    int textLen = static_cast<int>(strlen(text));
+    int textX = ctrl.x - (textLen * (font.getWidth() + 1)) / 2;
+    g.drawText(textX, ctrl.y - 3, text, 0xFFFFCC00, font, 1);
 }
 
 void IndustrialGritbaalRenderer::drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) {

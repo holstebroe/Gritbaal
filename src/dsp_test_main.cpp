@@ -44,15 +44,15 @@ void writeWav(const std::string& filename, const std::vector<float>& samples, in
     std::cout << "Wrote " << filename << " (" << samples.size() << " samples)\n";
 }
 
-static float runTestForMode(gritbaal::EmulationMode mode, const std::string& wavFilename) {
+static float runDspTest(const std::string& wavFilename) {
     gritbaal::SynthEngine engine;
     engine.setSampleRate(44100.0);
 
     auto& params = engine.getParams();
-    params.mode = mode;
     params.cutoff = 0.4f;
     params.resonance = 0.85f;
-    params.envMod = 0.8f;
+    params.env1Amount = 0.8f;
+    params.env1Target = gritbaal::ModTarget::Cutoff;
     params.waveform = gritbaal::Waveform::Saw;
     params.masterVolume = 0.8f;
 
@@ -174,11 +174,8 @@ static void testPhase2ExtendedDsp() {
 }
 
 int main() {
-    float accurateMax = runTestForMode(gritbaal::EmulationMode::Accurate, "test_gritbaal_accurate.wav");
-    std::cout << "Accurate mode DSP test completed. Max peak amplitude: " << accurateMax << "\n";
-
-    float simplifiedMax = runTestForMode(gritbaal::EmulationMode::Simplified, "test_gritbaal_simplified.wav");
-    std::cout << "Simplified mode DSP test completed. Max peak amplitude: " << simplifiedMax << "\n";
+    float accurateMax = runDspTest("test_gritbaal_accurate.wav");
+    std::cout << "Core DSP test completed. Max peak amplitude: " << accurateMax << "\n";
 
     testPhase2ExtendedDsp();
 

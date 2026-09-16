@@ -151,7 +151,7 @@ float Oscillator::processNextSample() {
     thermalWalk1_ = alpha * thermalWalk1_ + std::sqrt(1.0 - alpha * alpha) * gaussianDist_(rng_) * 0.05;
     thermalWalk2_ = alpha * thermalWalk2_ + std::sqrt(1.0 - alpha * alpha) * gaussianDist_(rng_) * 0.05;
 
-    double cents1 = mismatchCents_ + thermalDrift_ * thermalWalk1_;
+    double cents1 = mismatchCents_ + thermalDrift_ * thermalWalk1_ + pitchModSemitones_ * 100.0;
     double freq1 = currentFreq_ * std::pow(2.0, cents1 / 1200.0);
 
     // 3. Generate VCO1 Phase
