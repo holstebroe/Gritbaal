@@ -163,12 +163,8 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float modLfo2R    = modAcc[17];
         float modLfo2A    = modAcc[18];
 
-        if (std::abs(modLfo1R) > 0.0001f) {
-            lfo1_.setRate(std::clamp(params_.lfo1Rate + modLfo1R * 10.0f, 0.05f, 30.0f));
-        }
-        if (std::abs(modLfo2R) > 0.0001f) {
-            lfo2_.setRate(std::clamp(params_.lfo2Rate + modLfo2R * 10.0f, 0.05f, 30.0f));
-        }
+        lfo1_.setRate(std::clamp(params_.lfo1Rate + modLfo1R * 10.0f, 0.05f, 30.0f));
+        lfo2_.setRate(std::clamp(params_.lfo2Rate + modLfo2R * 10.0f, 0.05f, 30.0f));
 
         float modulatedPw1 = std::clamp(params_.vco1PulseWidth + modPw1 * 0.4f, 0.05f, 0.95f);
         float modulatedPw2 = std::clamp(params_.vco2PulseWidth + modPw2 * 0.4f, 0.05f, 0.95f);
@@ -197,24 +193,22 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         filter_.setFilterType(params_.filterType);
         filter_.setPreDrive(effectivePreDrive);
 
-        bool hasAmpTarget = (params_.lfo1Target == ModTarget::Amp ||
-                             params_.lfo2Target == ModTarget::Amp ||
-                             params_.env1Target == ModTarget::Amp ||
-                             params_.env2Target == ModTarget::Amp);
-        float vcaEnvVal = hasAmpTarget ? std::clamp(modAmp, 0.0f, 1.0f) : env2Val;
+        float ampScale = std::clamp(1.0f + modAmp, 0.0f, 2.0f);
+        float vcaEnvVal = env2Val * ampScale;
 
         float load = std::abs(rawOsc) * vcaEnvVal;
-        powerSagLpf_ += 0.005f * (load - powerSagLpf_);
+        float sagRate = (load > powerSagLpf_) ? 0.02f : 0.002f; // Fast sag under load, slow PSU recovery
+        powerSagLpf_ += sagRate * (load - powerSagLpf_);
         railVoltage_ = 1.0f - params_.powerSagAmount * 0.25f * powerSagLpf_;
         railVoltage_ = std::clamp(railVoltage_, 0.65f, 1.0f);
 
         float cTaper = effectiveCutoffNorm_ * effectiveCutoffNorm_;
-        float cv_total = 3.64385f * cTaper;
+        float cv_total = 6.90689f * cTaper; // Log2(18000 / 150) = 6.90689 octaves
         float effectiveCutoff = 150.0f * std::pow(2.0f, cv_total);
         effectiveCutoff *= railVoltage_;
-        float totalCutoff = std::clamp(effectiveCutoff, 20.0f, 16000.0f);
+        float totalCutoff = std::clamp(effectiveCutoff, 20.0f, 18000.0f);
 
-        float filterOut = filter_.processCoupledLadderSample(rawOsc, totalCutoff, resNorm);
+        float filterOut = filter_.processSample(rawOsc, totalCutoff, resNorm);
 
         float vcaSignal = filterOut * vcaEnvVal;
 

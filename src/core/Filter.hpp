@@ -93,7 +93,7 @@ public:
 
     float processSample(float input, float cutoffHz, float resonance);
 
-    // Accurate coupled diode-ladder solver with inter-stage loading
+    // Accurate diode/transistor ladder solver
     float processCoupledLadderSample(float input, float cutoffHz, float resonance);
 
 private:
@@ -112,18 +112,9 @@ private:
     float skS1_{0.0f};
     float skS2_{0.0f};
 
-    // Coupled ladder node voltage states for accurate mode (v1, v2, v3, v4)
-    float ladderV1_{0.0f};
-    float ladderV2_{0.0f};
-    float ladderV3_{0.0f};
-    float ladderV4_{0.0f};
-    float hpFbStateX1_{0.0f};
-    float hpFbStateY1_{0.0f};
-    float prevAccurateInput_{0.0f};
-
     HPFFeedback hpfFeedback_;
 
-    // Diode ladder capacitor values / pole spreading for ~18dB/oct slope
+    // Capacitor values / pole spreading for ladder slope modulation
     const float capScale1_{1.0000f};
     const float capScale2_{0.6667f};
     const float capScale3_{0.3030f};
