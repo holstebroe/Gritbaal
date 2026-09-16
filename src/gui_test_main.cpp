@@ -75,15 +75,28 @@ int main() {
     std::cout << "GUI output event gesture queue test passed successfully! Events recorded: " << testCtx.types.size() << std::endl;
 
     // 1b. ModeSelector target label drag test
-    // LFO1_TARGET ModeSelector is at x=218, y=285
-    gui.handleMouseDown(218, 285, false);
-    gui.handleMouseDrag(218, 260, false); // Drag UP 25 pixels (2 steps)
+    // LFO1_TARGET ModeSelector is at x=218, y=277
+    gui.handleMouseDown(218, 277, false);
+    gui.handleMouseDrag(218, 252, false); // Drag UP 25 pixels (2 steps)
     gui.handleMouseUp();
 
     double lfo1TargetVal = 0.0;
     plugin.paramsValue(gritbaal::PARAM_LFO1_TARGET, &lfo1TargetVal);
     std::cout << "LFO1 Target after 25px UP drag on ModeSelector: " << lfo1TargetVal << std::endl;
     assert(lfo1TargetVal == 2.0); // 0 (Cutoff) + 2 = 2 (Pitch)
+
+    // 1c. Double-click reset test
+    gui.handleMouseDown(580, 100, false);
+    gui.handleMouseDrag(580, 150, false);
+    gui.handleMouseUp();
+    gui.handleMouseDown(580, 100, false);
+    gui.handleMouseDown(580, 100, false);
+    gui.handleMouseUp();
+
+    double resetCutoffVal = 0.0;
+    plugin.paramsValue(gritbaal::PARAM_CUTOFF, &resetCutoffVal);
+    std::cout << "Cutoff after double click reset: " << resetCutoffVal << std::endl;
+    assert(resetCutoffVal == 0.5);
 
     // 2. Fine mouse drag test (isShift = true)
     gui.handleMouseDown(670, 100, true); // Resonance knob at (670, 100) with Shift
@@ -107,7 +120,7 @@ int main() {
     midiCcEv.header.type = CLAP_EVENT_MIDI;
     midiCcEv.port_index = 0;
     midiCcEv.data[0] = 0xB0; // Control Change Ch 1
-    midiCcEv.data[1] = 74;   // CC 74 (Cutoff)
+    midiCcEv.data[1] = 71;   // CC 71 (Cutoff)
     midiCcEv.data[2] = 127;  // Max CC value
 
     // Simulate process block or flush with incoming MIDI CC

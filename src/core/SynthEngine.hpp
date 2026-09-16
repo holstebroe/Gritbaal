@@ -12,10 +12,23 @@ enum class ModTarget {
     Cutoff = 0,
     Resonance = 1,
     Pitch = 2,
-    PulseWidth = 3,
-    Amp = 4,
-    Drive = 5,
-    Count = 6
+    Pw1 = 3,
+    Pw2 = 4,
+    Detune = 5,
+    FmAmount = 6,
+    Vco1Vol = 7,
+    Vco2Vol = 8,
+    SubVol = 9,
+    RingMod = 10,
+    NoiseVol = 11,
+    PreDrive = 12,
+    TubeDrive = 13,
+    Amp = 14,
+    Lfo1Rate = 15,
+    Lfo1Amount = 16,
+    Lfo2Rate = 17,
+    Lfo2Amount = 18,
+    Count = 19
 };
 
 struct SynthParameters {
@@ -47,7 +60,7 @@ struct SynthParameters {
     bool lfo1Sync{false};
 
     float lfo2Rate{2.0f};      // 0.05 Hz to 30 Hz
-    ModTarget lfo2Target{ModTarget::PulseWidth};
+    ModTarget lfo2Target{ModTarget::Pw2};
     float lfo2Depth{0.5f};     // Bipolar normalized [0, 1] (0.5 = 0 depth)
     bool lfo2Sync{false};
 

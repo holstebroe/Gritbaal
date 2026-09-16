@@ -171,16 +171,24 @@ void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& k
         int midX2 = knob.x + static_cast<int>(std::cos(centerAngle) * rOut);
         int midY2 = knob.y + static_cast<int>(std::sin(centerAngle) * rOut);
         g.drawLine(midX1, midY1, midX2, midY2, 0xFFFF8A00, 1);
+
+        // Secondary Modulated Arc for Bipolar Knobs (starts from 12 o'clock center)
+        double mNorm = std::clamp(modValNorm, 0.0, 1.0);
+        double modAngle = startAngle + mNorm * totalAngle;
+        if (mNorm > 0.501) {
+            g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(centerAngle), static_cast<float>(modAngle), 0xFF00E5FF, 2);
+        } else if (mNorm < 0.499) {
+            g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(modAngle), static_cast<float>(centerAngle), 0xFF00E5FF, 2);
+        }
     } else {
         if (normVal > 0.01) {
             g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(startAngle), static_cast<float>(activeAngle), 0xFFFF4500, 2);
         }
+        // Second Arc: Realtime Modulated Position
+        double mNorm = std::clamp(modValNorm, 0.0, 1.0);
+        double modAngle = startAngle + mNorm * totalAngle;
+        g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(startAngle), static_cast<float>(modAngle), 0xFF00E5FF, 2);
     }
-
-    // Second Arc: Realtime Modulated Position (Bright Neon Cyan/Yellow glow)
-    double mNorm = std::clamp(modValNorm, 0.0, 1.0);
-    double modAngle = startAngle + mNorm * totalAngle;
-    g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(startAngle), static_cast<float>(modAngle), 0xFF00E5FF, 2);
 
     // Tick marks at minimum and maximum
     int rIn = knob.radius + 4;

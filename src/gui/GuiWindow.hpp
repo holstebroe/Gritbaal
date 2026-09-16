@@ -35,6 +35,7 @@ struct Control {
     bool isStepped;
     bool isBipolar{false};
     std::vector<std::string> options{};
+    double defaultVal{0.0};
 };
 
 class GuiWindow {
@@ -85,6 +86,10 @@ private:
     int activeControlIndex_{-1};
     int dragStartY_{0};
     double dragStartVal_{0.0};
+
+    uint32_t lastClickTimestampMs_{0};
+    int lastClickX_{-100};
+    int lastClickY_{-100};
 
     std::atomic<bool> isRunning_{false};
     std::thread eventThread_;

@@ -132,10 +132,10 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float env2ModVal = env2Val * ((params_.env2Amount - 0.5f) * 2.0f);
 
         // 3. Aggregate Modulations
-        float modAcc[6] = {0.0f};
+        float modAcc[19] = {0.0f};
         auto addMod = [&](ModTarget t, float val) {
             int idx = static_cast<int>(t);
-            if (idx >= 0 && idx < 6) modAcc[idx] += val;
+            if (idx >= 0 && idx < 19) modAcc[idx] += val;
         };
 
         addMod(params_.lfo1Target, lfo1Val);
@@ -143,18 +143,45 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         addMod(params_.env1Target, env1ModVal);
         addMod(params_.env2Target, env2ModVal);
 
-        float modCutoff = modAcc[static_cast<int>(ModTarget::Cutoff)];
-        float modReson  = modAcc[static_cast<int>(ModTarget::Resonance)];
-        float modPitch  = modAcc[static_cast<int>(ModTarget::Pitch)];
-        float modPw     = modAcc[static_cast<int>(ModTarget::PulseWidth)];
-        float modAmp    = modAcc[static_cast<int>(ModTarget::Amp)];
-        float modDrive  = modAcc[static_cast<int>(ModTarget::Drive)];
+        float modCutoff   = modAcc[0];
+        float modReson    = modAcc[1];
+        float modPitch    = modAcc[2];
+        float modPw1      = modAcc[3];
+        float modPw2      = modAcc[4];
+        float modDetune   = modAcc[5];
+        float modFm       = modAcc[6];
+        float modV1Vol    = modAcc[7];
+        float modV2Vol    = modAcc[8];
+        float modSubVol   = modAcc[9];
+        float modRingMod  = modAcc[10];
+        float modNoiseVol = modAcc[11];
+        float modPreDrive = modAcc[12];
+        float modTubeDrive= modAcc[13];
+        float modAmp      = modAcc[14];
+        float modLfo1R    = modAcc[15];
+        float modLfo1A    = modAcc[16];
+        float modLfo2R    = modAcc[17];
+        float modLfo2A    = modAcc[18];
 
-        float modulatedPw1 = std::clamp(params_.vco1PulseWidth + modPw * 0.4f, 0.05f, 0.95f);
-        float modulatedPw2 = std::clamp(params_.vco2PulseWidth + modPw * 0.4f, 0.05f, 0.95f);
+        if (std::abs(modLfo1R) > 0.0001f) {
+            lfo1_.setRate(std::clamp(params_.lfo1Rate + modLfo1R * 10.0f, 0.05f, 30.0f));
+        }
+        if (std::abs(modLfo2R) > 0.0001f) {
+            lfo2_.setRate(std::clamp(params_.lfo2Rate + modLfo2R * 10.0f, 0.05f, 30.0f));
+        }
+
+        float modulatedPw1 = std::clamp(params_.vco1PulseWidth + modPw1 * 0.4f, 0.05f, 0.95f);
+        float modulatedPw2 = std::clamp(params_.vco2PulseWidth + modPw2 * 0.4f, 0.05f, 0.95f);
         osc_.setVco1PulseWidth(modulatedPw1);
         osc_.setVco2PulseWidth(modulatedPw2);
         osc_.setPitchModulationSemitones(modPitch * 12.0f);
+        osc_.setVco2DetuneSemitones(std::clamp(params_.vco2Detune + modDetune * 12.0f, -24.0f, 24.0f));
+        osc_.setFmAmount(std::clamp(params_.fmAmount + modFm, 0.0f, 1.0f));
+
+        osc_.setVco1Level(std::clamp(params_.vco1Level + modV1Vol, 0.0f, 1.0f));
+        osc_.setVco2Level(std::clamp(params_.vco2Level + modV2Vol, 0.0f, 1.0f));
+        osc_.setSubLevel(std::clamp(params_.subLevel + modSubVol, 0.0f, 1.0f));
+        osc_.setNoiseLevel(std::clamp(params_.noiseLevel + modNoiseVol, 0.0f, 1.0f));
 
         effectivePw1Norm_ = (modulatedPw1 - 0.05f) / 0.90f;
         effectivePw2Norm_ = (modulatedPw2 - 0.05f) / 0.90f;
@@ -166,7 +193,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
 
         float resNorm = std::clamp(params_.resonance + modReson, 0.0f, 1.0f);
 
-        float effectivePreDrive = std::clamp(params_.preFilterDrive + modDrive * 2.0f, 1.0f, 5.0f);
+        float effectivePreDrive = std::clamp(params_.preFilterDrive + modPreDrive * 2.0f, 1.0f, 5.0f);
         filter_.setFilterType(params_.filterType);
         filter_.setPreDrive(effectivePreDrive);
 
@@ -191,8 +218,6 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
 
         float vcaSignal = filterOut * vcaEnvVal;
 
-        // Exaggerated Warmth Saturation (rich second-harmonic analog warmth + soft asymmetric clipping):
-        // y = x + warmth * (0.8 * x^2 + 0.3 * x^3)
         if (params_.warmthAmount > 0.001f) {
             float w = params_.warmthAmount;
             float sq = vcaSignal * vcaSignal;
@@ -200,9 +225,9 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
             vcaSignal = std::tanh(vcaSignal + w * (0.85f * sq + 0.35f * cube));
         }
 
-        // Post-Filter Tube / Diode Overdrive Waveshaper: y = tanh(x + 0.15 * x^2)
-        if (params_.overdriveAmount > 0.001f) {
-            float driveScale = 1.0f + params_.overdriveAmount * 3.0f;
+        float effOverdrive = std::clamp(params_.overdriveAmount + modTubeDrive, 0.0f, 1.0f);
+        if (effOverdrive > 0.001f) {
+            float driveScale = 1.0f + effOverdrive * 3.0f;
             float xDriven = vcaSignal * driveScale;
             float asymmetricVal = xDriven + 0.15f * xDriven * xDriven;
             vcaSignal = std::tanh(asymmetricVal);
