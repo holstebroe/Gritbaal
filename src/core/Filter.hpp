@@ -1,6 +1,7 @@
 #ifndef GRITBAAL_FILTER_HPP
 #define GRITBAAL_FILTER_HPP
 
+#include "MathConstants.hpp"
 #include <cmath>
 #include <algorithm>
 #include <array>
@@ -44,7 +45,7 @@ public:
     }
 
     void setCutoff(float cutoffHz) {
-        float w0 = 2.0f * 3.14159265358979323846f * cutoffHz;
+        float w0 = kTWO_PI_F * cutoffHz;
         alpha_ = 1.0f / (1.0f + w0 / (2.0f * static_cast<float>(sampleRate_)));
     }
 
@@ -93,7 +94,7 @@ public:
     float processSample(float input, float cutoffHz, float resonance);
 
     // Accurate coupled diode-ladder solver with inter-stage loading
-    float processAccurateSample(float input, float cutoffHz, float resonance);
+    float processCoupledLadderSample(float input, float cutoffHz, float resonance);
 
 private:
     double sampleRate_{44100.0};

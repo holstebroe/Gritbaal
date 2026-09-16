@@ -214,7 +214,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         effectiveCutoff *= railVoltage_;
         float totalCutoff = std::clamp(effectiveCutoff, 20.0f, 16000.0f);
 
-        float filterOut = filter_.processAccurateSample(rawOsc, totalCutoff, resNorm);
+        float filterOut = filter_.processCoupledLadderSample(rawOsc, totalCutoff, resNorm);
 
         float vcaSignal = filterOut * vcaEnvVal;
 

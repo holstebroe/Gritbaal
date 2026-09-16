@@ -379,322 +379,80 @@ uint32_t GritbaalClap::paramsCount() const {
     return PARAM_COUNT;
 }
 
+struct ParamDef {
+    const char* name;
+    const char* module;
+    double min_value;
+    double max_value;
+    double default_value;
+    bool is_stepped;
+};
+
+static const ParamDef kParamDefs[PARAM_COUNT] = {
+    /* PARAM_CUTOFF        */ { "Cutoff Freq",     "Filter",    0.0, 1.0,  0.5,  false },
+    /* PARAM_RESONANCE     */ { "Resonance",       "Filter",    0.0, 1.0,  0.5,  false },
+    /* PARAM_WAVEFORM      */ { "Waveform",        "Oscillator",0.0, 1.0,  0.0,  true  },
+    /* PARAM_VOLUME        */ { "Master Volume",   "Main",      0.0, 1.0,  0.8,  false },
+
+    /* PARAM_ENV1_A        */ { "ENV1 Attack",     "Envelope",  0.0, 1.0,  0.01, false },
+    /* PARAM_ENV1_D        */ { "ENV1 Decay",      "Envelope",  0.0, 1.0,  0.3,  false },
+    /* PARAM_ENV1_S        */ { "ENV1 Sustain",    "Envelope",  0.0, 1.0,  0.4,  false },
+    /* PARAM_ENV1_R        */ { "ENV1 Release",    "Envelope",  0.0, 1.0,  0.3,  false },
+    /* PARAM_ENV1_TARGET   */ { "ENV1 Target",     "Envelope",  0.0, 18.0, 0.0,  true  },
+    /* PARAM_ENV1_AMT      */ { "ENV1 Amount",     "Envelope",  0.0, 1.0,  0.75, false },
+
+    /* PARAM_ENV2_A        */ { "ENV2 Attack",     "Envelope",  0.0, 1.0,  0.01, false },
+    /* PARAM_ENV2_D        */ { "ENV2 Decay",      "Envelope",  0.0, 1.0,  0.3,  false },
+    /* PARAM_ENV2_S        */ { "ENV2 Sustain",    "Envelope",  0.0, 1.0,  0.7,  false },
+    /* PARAM_ENV2_R        */ { "ENV2 Release",    "Envelope",  0.0, 1.0,  0.3,  false },
+    /* PARAM_ENV2_TARGET   */ { "ENV2 Target",     "Envelope",  0.0, 18.0, 4.0,  true  },
+    /* PARAM_ENV2_AMT      */ { "ENV2 Amount",     "Envelope",  0.0, 1.0,  1.0,  false },
+
+    /* PARAM_LFO1_RATE     */ { "LFO1 Rate",       "LFO",       0.0, 1.0,  0.1,  false },
+    /* PARAM_LFO1_TARGET   */ { "LFO1 Target",     "LFO",       0.0, 18.0, 0.0,  true  },
+    /* PARAM_LFO1_DEPTH    */ { "LFO1 Amount",     "LFO",       0.0, 1.0,  0.5,  false },
+    /* PARAM_LFO1_SYNC     */ { "LFO1 Sync",       "LFO",       0.0, 1.0,  0.0,  true  },
+
+    /* PARAM_LFO2_RATE     */ { "LFO2 Rate",       "LFO",       0.0, 1.0,  0.1,  false },
+    /* PARAM_LFO2_TARGET   */ { "LFO2 Target",     "LFO",       0.0, 18.0, 3.0,  true  },
+    /* PARAM_LFO2_DEPTH    */ { "LFO2 Amount",     "LFO",       0.0, 1.0,  0.5,  false },
+    /* PARAM_LFO2_SYNC     */ { "LFO2 Sync",       "LFO",       0.0, 1.0,  0.0,  true  },
+
+    /* PARAM_VCO1_WAVE     */ { "VCO1 Wave",       "VCO",       0.0, 1.0,  0.0,  true  },
+    /* PARAM_VCO1_PW       */ { "VCO1 PW",         "VCO",       0.0, 1.0,  0.5,  false },
+    /* PARAM_VCO2_WAVE     */ { "VCO2 Wave",       "VCO",       0.0, 1.0,  0.0,  true  },
+    /* PARAM_VCO2_PW       */ { "VCO2 PW",         "VCO",       0.0, 1.0,  0.5,  false },
+    /* PARAM_VCO2_DETUNE   */ { "VCO2 Detune",     "VCO",       0.0, 1.0,  0.5,  false },
+    /* PARAM_FM_AMOUNT     */ { "Pitch FM",        "VCO",       0.0, 1.0,  0.0,  false },
+    /* PARAM_HARD_SYNC     */ { "Hard Sync",       "VCO",       0.0, 1.0,  0.0,  true  },
+
+    /* PARAM_VCO1_VOL      */ { "VCO1 Vol",        "Mixer",     0.0, 1.0,  1.0,  false },
+    /* PARAM_VCO2_VOL      */ { "VCO2 Vol",        "Mixer",     0.0, 1.0,  0.0,  false },
+    /* PARAM_RING_MOD      */ { "Ring Mod",        "Mixer",     0.0, 1.0,  0.0,  false },
+    /* PARAM_SUB_VOL       */ { "Sub Vol",         "Mixer",     0.0, 1.0,  0.0,  false },
+    /* PARAM_NOISE_VOL     */ { "Crackle Vol",     "Mixer",     0.0, 1.0,  0.0,  false },
+    /* PARAM_PRE_DRIVE     */ { "Pre-Drive",       "Drive",     0.0, 1.0,  0.0,  false },
+    /* PARAM_OVERDRIVE     */ { "Tube Overdrive",  "Drive",     0.0, 1.0,  0.0,  false },
+    /* PARAM_WARMTH        */ { "Analog Warmth",   "Output",    0.0, 1.0,  0.0,  false },
+
+    /* PARAM_FILTER_TYPE   */ { "Filter Type",     "Filter",    0.0, 1.0,  0.0,  true  },
+    /* PARAM_THERMAL_DRIFT */ { "Thermal Drift",   "Global",    0.0, 1.0,  0.1,  false },
+    /* PARAM_POWER_SAG     */ { "Power Sag",       "Global",    0.0, 1.0,  0.1,  false },
+};
+
 bool GritbaalClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) const {
     if (paramIndex >= PARAM_COUNT) return false;
 
+    const auto& def = kParamDefs[paramIndex];
     std::memset(paramInfo, 0, sizeof(*paramInfo));
     paramInfo->id = paramIndex;
-    paramInfo->flags = CLAP_PARAM_IS_AUTOMATABLE;
+    paramInfo->flags = CLAP_PARAM_IS_AUTOMATABLE | (def.is_stepped ? CLAP_PARAM_IS_STEPPED : 0);
+    snprintf(paramInfo->name, sizeof(paramInfo->name), "%s", def.name);
+    snprintf(paramInfo->module, sizeof(paramInfo->module), "%s", def.module);
+    paramInfo->min_value = def.min_value;
+    paramInfo->max_value = def.max_value;
+    paramInfo->default_value = def.default_value;
 
-    switch (paramIndex) {
-        case PARAM_CUTOFF:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Cutoff Freq");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Filter");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.5;
-            break;
-        case PARAM_RESONANCE:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Resonance");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Filter");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.5;
-            break;
-        case PARAM_ENV1_A:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV1 Attack");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.01;
-            break;
-        case PARAM_ENV1_D:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV1 Decay");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.3;
-            break;
-        case PARAM_ENV1_S:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV1 Sustain");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.4;
-            break;
-        case PARAM_ENV1_R:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV1 Release");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.3;
-            break;
-        case PARAM_ENV1_TARGET:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV1 Target");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
-            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 18.0;
-            paramInfo->default_value = 0.0;
-            break;
-        case PARAM_ENV1_AMT:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV1 Amount");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.75;
-            break;
-        case PARAM_ENV2_A:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV2 Attack");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.01;
-            break;
-        case PARAM_ENV2_D:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV2 Decay");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.3;
-            break;
-        case PARAM_ENV2_S:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV2 Sustain");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.7;
-            break;
-        case PARAM_ENV2_R:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV2 Release");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.3;
-            break;
-        case PARAM_ENV2_TARGET:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV2 Target");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
-            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 18.0;
-            paramInfo->default_value = 4.0;
-            break;
-        case PARAM_ENV2_AMT:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "ENV2 Amount");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Envelope");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 1.0;
-            break;
-        case PARAM_LFO1_RATE:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO1 Rate");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "LFO");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.1;
-            break;
-        case PARAM_LFO1_TARGET:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO1 Target");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "LFO");
-            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 18.0;
-            paramInfo->default_value = 0.0;
-            break;
-        case PARAM_LFO1_DEPTH:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO1 Amount");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "LFO");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.5;
-            break;
-        case PARAM_LFO1_SYNC:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO1 Sync");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "LFO");
-            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0;
-            break;
-        case PARAM_LFO2_RATE:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO2 Rate");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "LFO");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.1;
-            break;
-        case PARAM_LFO2_TARGET:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO2 Target");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "LFO");
-            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 18.0;
-            paramInfo->default_value = 3.0;
-            break;
-        case PARAM_LFO2_DEPTH:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO2 Amount");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "LFO");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.5;
-            break;
-        case PARAM_LFO2_SYNC:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "LFO2 Sync");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "LFO");
-            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0;
-            break;
-        case PARAM_WAVEFORM:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Waveform");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Oscillator");
-            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0; // 0 = Saw, 1 = Square
-            break;
-        case PARAM_VOLUME:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Master Volume");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Main");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.8;
-            break;
-        case PARAM_VCO1_WAVE:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO1 Wave");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "VCO");
-            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0;
-            break;
-        case PARAM_VCO1_PW:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO1 PW");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "VCO");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.5;
-            break;
-        case PARAM_VCO2_WAVE:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO2 Wave");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "VCO");
-            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0;
-            break;
-        case PARAM_VCO2_PW:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO2 PW");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "VCO");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.5;
-            break;
-        case PARAM_VCO2_DETUNE:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO2 Detune");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "VCO");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.5;
-            break;
-        case PARAM_FM_AMOUNT:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Pitch FM");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "VCO");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0;
-            break;
-        case PARAM_HARD_SYNC:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Hard Sync");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "VCO");
-            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0;
-            break;
-        case PARAM_VCO1_VOL:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO1 Vol");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Mixer");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 1.0;
-            break;
-        case PARAM_VCO2_VOL:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO2 Vol");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Mixer");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0;
-            break;
-        case PARAM_RING_MOD:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Ring Mod");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Mixer");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0;
-            break;
-        case PARAM_SUB_VOL:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Sub Vol");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Mixer");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0;
-            break;
-        case PARAM_NOISE_VOL:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Crackle Vol");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Mixer");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0;
-            break;
-        case PARAM_PRE_DRIVE:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Pre-Drive");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Drive");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0;
-            break;
-        case PARAM_OVERDRIVE:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Tube Overdrive");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Drive");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0;
-            break;
-        case PARAM_WARMTH:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Analog Warmth");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Output");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0;
-            break;
-        case PARAM_FILTER_TYPE:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Type");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Filter");
-            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0; // 0 = Ladder, 1 = MS20
-            break;
-        case PARAM_THERMAL_DRIFT:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Thermal Drift");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Global");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.1;
-            break;
-        case PARAM_POWER_SAG:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Power Sag");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Global");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.1;
-            break;
-        default:
-            return false;
-    }
     return true;
 }
 
@@ -916,7 +674,7 @@ static const clap_plugin_descriptor_t g_gritbaalDescriptor = {
     "",
     "",
     "1.0.0",
-    "Roland TB-303 Bass Synth Emulator",
+    "Gritbaal Synthesizer",
     g_gritbaalFeatures
 };
 

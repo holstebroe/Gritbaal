@@ -1,10 +1,11 @@
 #include "Graphics.hpp"
+#include "core/MathConstants.hpp"
 #include <cmath>
 #include <algorithm>
 #include <cstring>
 
 #ifndef M_PI
-#define M_PI 3.14159265358979323846
+#define M_PI gritbaal::kPI
 #endif
 
 namespace gritbaal {

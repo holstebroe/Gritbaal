@@ -1,6 +1,7 @@
 #ifndef GRITBAAL_LFO_HPP
 #define GRITBAAL_LFO_HPP
 
+#include "MathConstants.hpp"
 #include <cmath>
 #include <algorithm>
 
@@ -23,7 +24,7 @@ public:
             phase_ -= 1.0;
         }
         // Pure Sine shape in range [-depth_, +depth_]
-        double val = std::sin(2.0 * 3.14159265358979323846 * phase_);
+        double val = std::sin(kTWO_PI * phase_);
         return static_cast<float>(val * depth_);
     }
 
