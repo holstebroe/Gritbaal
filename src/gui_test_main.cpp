@@ -85,6 +85,26 @@ int main() {
     std::cout << "LFO1 Target after 25px UP drag on ModeSelector: " << lfo1TargetVal << std::endl;
     assert(lfo1TargetVal == 2.0); // 0 (Cutoff) + 2 = 2 (Pitch)
 
+    // 1b-2. Right-click Target Selection Mode test
+    // Right click LFO1_TARGET ModeSelector (x=218, y=277) to enter target selection mode
+    gui.handleRightClick(218, 277);
+    assert(gui.getTargetSelectingControlIndex() >= 0);
+
+    // Right click Resonance knob at x=670, y=100
+    gui.handleRightClick(670, 100);
+    assert(gui.getTargetSelectingControlIndex() == -1); // Target selection mode ended
+
+    plugin.paramsValue(gritbaal::PARAM_LFO1_TARGET, &lfo1TargetVal);
+    std::cout << "LFO1 Target after right-click selection of Resonance knob: " << lfo1TargetVal << std::endl;
+    assert(lfo1TargetVal == 1.0); // ModTarget::Resonance = 1
+
+    // Test right-click toggle cancel
+    gui.handleRightClick(218, 277); // enter selection mode
+    assert(gui.getTargetSelectingControlIndex() >= 0);
+    gui.handleRightClick(218, 277); // right-click again cancels selection mode
+    assert(gui.getTargetSelectingControlIndex() == -1);
+    std::cout << "Right-click target selection tests passed successfully!" << std::endl;
+
     // 1c. Double-click reset test
     gui.handleMouseDown(580, 100, false);
     gui.handleMouseDrag(580, 150, false);
@@ -163,10 +183,10 @@ int main() {
         void drawKnob(gritbaal::Graphics& g, const gritbaal::Control& ctrl, const gritbaal::Font& font) override {
             knobDrawn = true;
         }
-        void drawKnobModulated(gritbaal::Graphics& g, const gritbaal::Control& ctrl, const gritbaal::Font& font, double modValNorm) override {
+        void drawKnobModulated(gritbaal::Graphics& g, const gritbaal::Control& ctrl, const gritbaal::Font& font, double modValNorm, bool isTargetHighlight = false) override {
             knobDrawn = true;
         }
-        void drawModeSelector(gritbaal::Graphics& g, const gritbaal::Control& ctrl, const gritbaal::Font& font) override {}
+        void drawModeSelector(gritbaal::Graphics& g, const gritbaal::Control& ctrl, const gritbaal::Font& font, bool isSelectingTarget = false) override {}
         void drawToggleSwitch(gritbaal::Graphics& g, const gritbaal::Control& ctrl, const gritbaal::Font& font) override {
             switchDrawn = true;
         }

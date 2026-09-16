@@ -65,8 +65,11 @@ public:
 
     void renderFrame();
     void handleMouseDown(int x, int y, bool isShift = false);
+    void handleRightClick(int x, int y);
     void handleMouseDrag(int x, int y, bool isShift = false);
     void handleMouseUp();
+
+    int getTargetSelectingControlIndex() const { return targetSelectingControlIndex_; }
 
 private:
     GritbaalClap* plugin_{nullptr};
@@ -84,6 +87,7 @@ private:
     std::unique_ptr<PanelLayout> layout_;
 
     int activeControlIndex_{-1};
+    int targetSelectingControlIndex_{-1};
     int dragStartY_{0};
     double dragStartVal_{0.0};
 

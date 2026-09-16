@@ -78,15 +78,18 @@ void TB303ControlRenderer::drawKnob(Graphics& g, const Control& knob, const Font
     g.drawCircle(ptrX, ptrY, 1, 0xFF101010);
 }
 
-void TB303ControlRenderer::drawModeSelector(Graphics& g, const Control& ctrl, const Font& font) {
+void TB303ControlRenderer::drawModeSelector(Graphics& g, const Control& ctrl, const Font& font, bool isSelectingTarget) {
     int idx = std::clamp(static_cast<int>(ctrl.currentVal + 0.5), 0, static_cast<int>(ctrl.options.size()) - 1);
     const char* text = (idx >= 0 && idx < static_cast<int>(ctrl.options.size())) ? ctrl.options[idx].c_str() : "";
 
+    uint32_t borderCol = isSelectingTarget ? 0xFF00E5FF : 0xFF808488;
+    uint32_t textCol = isSelectingTarget ? 0xFF00E5FF : 0xFFE0E4E8;
+
     g.drawRect(ctrl.x - 26, ctrl.y - 8, 52, 16, 0xFF101010);
-    g.drawRectOutline(ctrl.x - 26, ctrl.y - 8, 52, 16, 0xFF808488, 1);
+    g.drawRectOutline(ctrl.x - 26, ctrl.y - 8, 52, 16, borderCol, isSelectingTarget ? 2 : 1);
     int textLen = static_cast<int>(strlen(text));
     int textX = ctrl.x - (textLen * (font.getWidth() + 1)) / 2;
-    g.drawText(textX, ctrl.y - 4, text, 0xFFE0E4E8, font, 1);
+    g.drawText(textX, ctrl.y - 4, text, textCol, font, 1);
 }
 
 void TB303ControlRenderer::drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) {

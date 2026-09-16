@@ -27,9 +27,9 @@ void SynthEngine::reset() {
     isNoteActive_ = false;
     railVoltage_ = 1.0f;
     powerSagLpf_ = 0.0f;
-    effectiveCutoffNorm_ = 0.5f;
-    effectivePw1Norm_ = 0.5f;
-    effectivePw2Norm_ = 0.5f;
+    for (int i = 0; i < static_cast<int>(ModTarget::Count); ++i) {
+        effectiveTargetNorm_[i] = 0.5f;
+    }
 }
 
 void SynthEngine::noteOn(int noteNumber, float velocity) {
@@ -129,7 +129,6 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float env2Val = env2_.getValue();
 
         float env1ModVal = env1Val * ((params_.env1Amount - 0.5f) * 2.0f);
-        float env2ModVal = env2Val * ((params_.env2Amount - 0.5f) * 2.0f);
 
         // 3. Aggregate Modulations
         float modAcc[19] = {0.0f};
@@ -141,7 +140,6 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         addMod(params_.lfo1Target, lfo1Val);
         addMod(params_.lfo2Target, lfo2Val);
         addMod(params_.env1Target, env1ModVal);
-        addMod(params_.env2Target, env2ModVal);
 
         float modCutoff   = modAcc[0];
         float modReson    = modAcc[1];
@@ -179,15 +177,33 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         osc_.setSubLevel(std::clamp(params_.subLevel + modSubVol, 0.0f, 1.0f));
         osc_.setNoiseLevel(std::clamp(params_.noiseLevel + modNoiseVol, 0.0f, 1.0f));
 
-        effectivePw1Norm_ = (modulatedPw1 - 0.05f) / 0.90f;
-        effectivePw2Norm_ = (modulatedPw2 - 0.05f) / 0.90f;
+        // Store effective normalized values for UI double-arc rendering across all targets
+        effectiveTargetNorm_[static_cast<int>(ModTarget::Cutoff)]   = std::clamp(params_.cutoff + modCutoff, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::Resonance)] = std::clamp(params_.resonance + modReson, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::Pitch)]     = std::clamp(0.5f + modPitch * 0.5f, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::Pw1)]       = (modulatedPw1 - 0.05f) / 0.90f;
+        effectiveTargetNorm_[static_cast<int>(ModTarget::Pw2)]       = (modulatedPw2 - 0.05f) / 0.90f;
+        effectiveTargetNorm_[static_cast<int>(ModTarget::Detune)]    = std::clamp(0.5f + (params_.vco2Detune / 48.0f) + modDetune * 0.25f, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::FmAmount)]  = std::clamp(params_.fmAmount + modFm, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::Vco1Vol)]   = std::clamp(params_.vco1Level + modV1Vol, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::Vco2Vol)]   = std::clamp(params_.vco2Level + modV2Vol, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::SubVol)]    = std::clamp(params_.subLevel + modSubVol, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::RingMod)]   = std::clamp(modRingMod, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::NoiseVol)]  = std::clamp(params_.noiseLevel + modNoiseVol, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::PreDrive)]  = std::clamp((params_.preFilterDrive - 1.0f) / 4.0f + modPreDrive * 0.5f, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::TubeDrive)] = std::clamp(params_.overdriveAmount + modTubeDrive, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::Amp)]       = std::clamp(params_.masterVolume + modAmp, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::Lfo1Rate)]  = std::clamp(params_.lfo1Rate / 30.0f + modLfo1R * 0.33f, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::Lfo1Amount)]= std::clamp(params_.lfo1Depth + modLfo1A * 0.5f, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::Lfo2Rate)]  = std::clamp(params_.lfo2Rate / 30.0f + modLfo2R * 0.33f, 0.0f, 1.0f);
+        effectiveTargetNorm_[static_cast<int>(ModTarget::Lfo2Amount)]= std::clamp(params_.lfo2Depth + modLfo2A * 0.5f, 0.0f, 1.0f);
 
         float rawOsc = osc_.processNextSample();
 
         float baseCutoff = std::clamp(params_.cutoff, 0.0f, 1.0f);
-        effectiveCutoffNorm_ = std::clamp(baseCutoff + modCutoff, 0.0f, 1.0f);
+        float effectiveCutoffNorm = effectiveTargetNorm_[static_cast<int>(ModTarget::Cutoff)];
 
-        float resNorm = std::clamp(params_.resonance + modReson, 0.0f, 1.0f);
+        float resNorm = effectiveTargetNorm_[static_cast<int>(ModTarget::Resonance)];
 
         float effectivePreDrive = std::clamp(params_.preFilterDrive + modPreDrive * 2.0f, 1.0f, 5.0f);
         filter_.setFilterType(params_.filterType);
@@ -202,7 +218,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         railVoltage_ = 1.0f - params_.powerSagAmount * 0.25f * powerSagLpf_;
         railVoltage_ = std::clamp(railVoltage_, 0.65f, 1.0f);
 
-        float cTaper = effectiveCutoffNorm_ * effectiveCutoffNorm_;
+        float cTaper = effectiveCutoffNorm * effectiveCutoffNorm;
         float cv_total = 6.90689f * cTaper; // Log2(18000 / 150) = 6.90689 octaves
         float effectiveCutoff = 150.0f * std::pow(2.0f, cv_total);
         effectiveCutoff *= railVoltage_;
