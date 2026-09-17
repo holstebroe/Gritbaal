@@ -27,8 +27,8 @@ The UI panel is structured into distinct recessed modular sections separated by 
 | | VCO2:                    | | | SUB VOL:    (o)   | | | ENV MOD:    (o)   | | |  SUSTAIN:  (o)    | |
 | |  WAVE: [SAW/TRI/PULSE]   | | | NOISE VOL:  (o)   | | | DRIVE (PRE): (o)  | | |  RELEASE:  (o)    | |
 | |  DETUNE:     (o)         | | |                   | | |                   | | | ENV2 (AMP):      | |
-| |  PITCH/FM:   (o)         | | | OVERDRIVE (TUBE)  | | | DRIVE TYPE:       | | |  ATTACK:   (o)    | |
-| |  SYNC: [OFF / ON]        | | | AMOUNT:     (o)   | | | [LADDER / MS20]   | | |  DECAY:    (o)    | |
+| |  PITCH/FM:   (o)         | | | OVERDRIVE (TUBE)  | | | VCF MODEL:        | | |  ATTACK:   (o)    | |
+| |  SYNC: [OFF / ON]        | | | AMOUNT:     (o)   | | | <MINIMOOG/ARP/...>| | |  DECAY:    (o)    | |
 | +--------------------------+ | +-------------------+ | +-------------------+ | |  SUSTAIN:  (o)    | |
 |  MODULATION & LFO            | GLOBAL & DRIFT        | OUTPUT & FX           | |  RELEASE:  (o)    | |
 | +--------------------------+ | +-------------------+ | +-------------------+ | +--------------------+ |
@@ -130,11 +130,10 @@ Gritbaal features a selectable dual-filter architecture designed for maximum gri
 
 ### 5.2 Topology 2: Diode Ring / Sallen-Key Filter (Korg MS-20 Style)
 * **Topology:** 2-pole 12dB/octave Sallen-Key diode bridge filter (Compendium Section 31).
-* **Gritty Diode Clipping:** Diode limiter non-linearities in the feedback path producing the iconic MS-20 aggressive, screaming self-oscillation and raw harmonic bite.
-* **Current status:** the Sallen-Key path is implemented and runs inside the same 4x oversampling loop as the ladder, but its feedback nonlinearity is still a symmetric `tanh`, not yet the asymmetric diode curve the real K35/MS-20 circuit has. Tracked in [filter-architecture-plan.md](filter-architecture-plan.md).
+* **Gritty Diode Clipping:** Diode limiter non-linearities in the feedback path producing the iconic MS-20 aggressive, screaming self-oscillation and raw harmonic bite, now via an asymmetric saturator rather than a symmetric `tanh`.
 
-### 5.3 Toward Multiple Vintage Targets
-`FilterType` today only distinguishes `TransistorLadder` and `SallenKey`, both used generically — there is no per-synth identity yet (e.g. a TB-303-flavored mismatched-capacitor ladder vs. a matched-capacitor Minimoog/ARP 2600 ladder). The plan for exposing distinct TB-303 / Minimoog / ARP 2600 (4012 & 4072) / MS-20 / Jupiter-8 / CS-80 character presets — grounded in each instrument's actual circuit per the compendium — lives in [filter-architecture-plan.md](filter-architecture-plan.md).
+### 5.3 Vintage Filter Model Selection
+`Filter.hpp` implements a templated Saturator × Solver × Topology architecture (see [filter-architecture-plan.md](filter-architecture-plan.md)) with four selectable mono targets — **Minimoog**, **ARP 2600** (the "4012" board), **TB-303**, and **MS-20** — chosen via the "VCF MODEL" control, a drag-through selector (like the LFO/ENV mod-target labels) that replaces the old binary Ladder/MS20 toggle switch. Minimoog and ARP 2600 share the same matched-capacitor ladder/`tanh` saturator combination (ARP 2600's own tuning is a future calibration step); TB-303 uses the same ladder topology with its historically-mismatched capacitor pattern and an asymmetric saturator; MS-20 uses the Sallen-Key topology with the same asymmetric saturator. Jupiter-8 and CS-80 are intentionally deferred — both are polyphonic and not yet modeled.
 
 ### 5.4 Overdrive & Power Supply Sag Modeling
 * **Pre-Filter Drive:** Variable input gain stage pushing the filter into heavy harmonic saturation before filtering.
