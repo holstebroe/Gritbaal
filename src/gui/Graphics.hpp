@@ -46,7 +46,13 @@ public:
     void drawArc(int cx, int cy, int radius, float startAngleRad, float endAngleRad, uint32_t color, int thickness = 1);
 
     void drawRivet(int cx, int cy, int radius = 3);
-    void drawPanelFrame(int x, int y, int w, int h, const char* title, const Font& font);
+    void drawPanelFrame(int x, int y, int w, int h, const char* title, const Font& font,
+                         uint32_t traceSeed = 0, bool hexAccent = false);
+
+    // Procedural background texture helpers (no external images/assets).
+    void drawNoiseTexture(int x, int y, int w, int h, uint32_t baseColor, int variance, uint32_t seed);
+    void drawCircuitTraces(int x, int y, int w, int h, uint32_t color, uint32_t seed, int count);
+    void drawHexGridTexture(int x, int y, int w, int h, uint32_t color, int hexSize);
 
     void drawChar(int x, int y, char c, uint32_t color, const Font& font, int scale = 1);
     void drawText(int x, int y, const char* text, uint32_t color, const Font& font, int scale = 1);

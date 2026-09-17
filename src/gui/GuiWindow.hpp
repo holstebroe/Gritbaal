@@ -79,6 +79,7 @@ private:
 
     std::vector<uint32_t> pixelBuffer_; // ARGB format (32-bit)
     std::vector<uint32_t> hiResBuffer_; // 2x supersampled buffer
+    std::vector<uint32_t> backgroundCache_; // Pre-rendered static chassis/panel background (2x), blitted per frame
     std::vector<Control> controls_;
     bool lastShiftState_{false};
     int currentPresetIndex_{0};
@@ -125,6 +126,7 @@ private:
     void initControls();
     void updateKnobValuesFromPlugin();
     void drawGritbaalTitle(Graphics& g, int x, int y);
+    void rebuildBackgroundCache();
 };
 
 } // namespace gritbaal

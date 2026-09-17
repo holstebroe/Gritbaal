@@ -18,6 +18,11 @@ void IndustrialGritbaalRenderer::drawKnob(Graphics& g, const Control& knob, cons
 }
 
 void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& knob, const Font& font, double modValNorm, bool isTargetHighlight) {
+    // Same RGB, lower alpha -- used to fake a soft bloom/glow under a crisp arc or line.
+    auto withAlpha = [](uint32_t color, uint8_t alpha) -> uint32_t {
+        return (color & 0x00FFFFFF) | (static_cast<uint32_t>(alpha) << 24);
+    };
+
     // 1. Label centered above knob (if non-empty)
     if (knob.label && strlen(knob.label) > 0) {
         int labelLen = static_cast<int>(strlen(knob.label));
@@ -39,8 +44,10 @@ void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& k
     if (knob.isBipolar) {
         double centerAngle = startAngle + 0.5 * totalAngle;
         if (normVal > 0.501) {
+            g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(centerAngle), static_cast<float>(activeAngle), withAlpha(0xFFFF4500, 90), 5);
             g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(centerAngle), static_cast<float>(activeAngle), 0xFFFF4500, 2);
         } else if (normVal < 0.499) {
+            g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(activeAngle), static_cast<float>(centerAngle), withAlpha(0xFFFF4500, 90), 5);
             g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(activeAngle), static_cast<float>(centerAngle), 0xFFFF4500, 2);
         }
         int rIn = knob.radius + 4;
@@ -55,17 +62,21 @@ void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& k
         double mNorm = std::clamp(modValNorm, 0.0, 1.0);
         double modAngle = startAngle + mNorm * totalAngle;
         if (mNorm > 0.501) {
+            g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(centerAngle), static_cast<float>(modAngle), withAlpha(0xFF00E5FF, 80), 5);
             g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(centerAngle), static_cast<float>(modAngle), 0xFF00E5FF, 2);
         } else if (mNorm < 0.499) {
+            g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(modAngle), static_cast<float>(centerAngle), withAlpha(0xFF00E5FF, 80), 5);
             g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(modAngle), static_cast<float>(centerAngle), 0xFF00E5FF, 2);
         }
     } else {
         if (normVal > 0.01) {
+            g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(startAngle), static_cast<float>(activeAngle), withAlpha(0xFFFF4500, 90), 5);
             g.drawArc(knob.x, knob.y, knob.radius + 5, static_cast<float>(startAngle), static_cast<float>(activeAngle), 0xFFFF4500, 2);
         }
         // Second Arc: Realtime Modulated Position
         double mNorm = std::clamp(modValNorm, 0.0, 1.0);
         double modAngle = startAngle + mNorm * totalAngle;
+        g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(startAngle), static_cast<float>(modAngle), withAlpha(0xFF00E5FF, 80), 5);
         g.drawArc(knob.x, knob.y, knob.radius + 8, static_cast<float>(startAngle), static_cast<float>(modAngle), 0xFF00E5FF, 2);
     }
 
@@ -111,11 +122,20 @@ void IndustrialGritbaalRenderer::drawKnobModulated(Graphics& g, const Control& k
     g.drawCircle(knob.x, knob.y, knob.radius - 4, 0xFF202326);
     g.drawCircleOutline(knob.x, knob.y, knob.radius - 4, 0xFF8C5224);
 
+    // Upper-left rim light: a fixed specular sheen that reads as a rounded,
+    // polished metal cap rather than a flat painted disc.
+    g.drawArc(knob.x, knob.y, knob.radius - 2, 3.6f, 5.0f, 0x50E8F0F5, 2);
+    int hlX = knob.x - static_cast<int>(knob.radius * 0.38);
+    int hlY = knob.y - static_cast<int>(knob.radius * 0.38);
+    g.drawCircle(hlX, hlY, (std::max)(1, knob.radius / 5), 0x30FFFFFF);
+
     // 6. Glowing Red/Amber Pointer Line
     int ptrX = knob.x + static_cast<int>(std::cos(activeAngle) * (knob.radius - 3));
     int ptrY = knob.y + static_cast<int>(std::sin(activeAngle) * (knob.radius - 3));
 
+    g.drawLine(knob.x, knob.y, ptrX, ptrY, withAlpha(0xFFFF3300, 70), 5);
     g.drawLine(knob.x, knob.y, ptrX, ptrY, 0xFFFF3300, 2);
+    g.drawCircle(ptrX, ptrY, 3, withAlpha(0xFFFFCC00, 60));
     g.drawCircle(ptrX, ptrY, 1, 0xFFFFCC00);
 }
 
@@ -181,6 +201,11 @@ void IndustrialGritbaalRenderer::drawPushButton(Graphics& g, const Control& ctrl
 }
 
 void IndustrialGritbaalRenderer::drawLedIndicator(Graphics& g, int cx, int cy, bool state, uint32_t activeColor) {
+    if (state) {
+        // Soft bloom haloing the lit LED out into the surrounding bezel.
+        uint32_t glow = (activeColor & 0x00FFFFFF) | 0x30000000;
+        g.drawCircle(cx, cy, 8, glow);
+    }
     g.drawCircle(cx, cy, 4, 0xFF101214);
     g.drawCircleOutline(cx, cy, 4, 0xFF383C40);
     uint32_t col = state ? activeColor : 0xFF301008;

@@ -26,17 +26,24 @@ public:
     }
 
     void drawLayout(Graphics& g, const Font& font) const {
-        // Main synth chassis background: Forged dark iron/gunmetal
+        // Main synth chassis background: Forged dark iron/gunmetal with a subtle
+        // brushed-metal grain so the chassis isn't a flat, lifeless fill.
         g.clear(0xFF141517);
+        g.drawNoiseTexture(0, 0, totalWidth_, totalHeight_, 0xFF141517, 3, 0xC0FFEE);
 
         // Header and chassis border trim
         g.drawRect(0, 0, totalWidth_, 16, 0xFF0E0F10);
         g.drawRectOutline(0, 0, totalWidth_, totalHeight_, 0xFF2A2D30, 2);
         g.drawRectOutline(2, 2, totalWidth_ - 4, totalHeight_ - 4, 0xFF8C5224, 1);
 
-        // Render each modular panel section
+        // Render each modular panel section. Every panel gets its own faint,
+        // deterministic circuit-trace linework (seeded from its position so it
+        // never changes between frames); the thermal/drift panel additionally
+        // gets a cellular hex-grid accent, evoking heat-sink/insulation texture.
         for (const auto& panel : panels_) {
-            g.drawPanelFrame(panel.x, panel.y, panel.width, panel.height, panel.title.c_str(), font);
+            uint32_t seed = static_cast<uint32_t>(panel.x) * 733u + static_cast<uint32_t>(panel.y) * 917u + 1u;
+            bool hexAccent = panel.title.find("DRIFT") != std::string::npos;
+            g.drawPanelFrame(panel.x, panel.y, panel.width, panel.height, panel.title.c_str(), font, seed, hexAccent);
         }
     }
 

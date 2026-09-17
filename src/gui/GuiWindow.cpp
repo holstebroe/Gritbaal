@@ -56,6 +56,7 @@ GuiWindow::GuiWindow(GritbaalClap* plugin)
     layout_->addPanel("OUTPUT & MASTER", 765, 245, 200, 220);
 
     initControls();
+    rebuildBackgroundCache();
 }
 
 GuiWindow::~GuiWindow() {
@@ -210,6 +211,19 @@ void GuiWindow::drawGritbaalTitle(Graphics& g, int x, int y) {
     g.drawText(touchedX + 8, y + 3, touchedBuf, 0xFF00E5FF, font_, 1);
 }
 
+void GuiWindow::rebuildBackgroundCache() {
+    int hW = width_ * 2;
+    int hH = height_ * 2;
+    backgroundCache_.assign(static_cast<size_t>(hW * hH), 0xFF141517);
+
+    Graphics g(backgroundCache_.data(), width_, height_, 2);
+    if (layout_) {
+        layout_->drawLayout(g, font_);
+    } else {
+        g.clear(0xFF141517);
+    }
+}
+
 void GuiWindow::renderFrame() {
     updateKnobValuesFromPlugin();
 
@@ -218,15 +232,15 @@ void GuiWindow::renderFrame() {
     if (hiResBuffer_.size() != static_cast<size_t>(hW * hH)) {
         hiResBuffer_.resize(hW * hH);
     }
+    if (backgroundCache_.size() != static_cast<size_t>(hW * hH)) {
+        rebuildBackgroundCache();
+    }
 
     Graphics g(hiResBuffer_.data(), width_, height_, 2);
 
-    // 1. Render Layout (Modular Dark Iron Panels & Copper Trim)
-    if (layout_) {
-        layout_->drawLayout(g, font_);
-    } else {
-        g.clear(0xFF141517);
-    }
+    // 1. Blit the pre-rendered chassis/panel background (static texture, gradients,
+    // rivets, titles) instead of re-drawing it from scratch every frame.
+    std::copy(backgroundCache_.begin(), backgroundCache_.end(), hiResBuffer_.begin());
 
     // Helper lambda to query effective normalized value per parameter ID
     auto getEffectiveVal = [&](int paramId, double curVal) -> float {
@@ -561,6 +575,7 @@ bool GuiWindow::setSize(uint32_t width, uint32_t height) {
     width_ = width;
     height_ = height;
     pixelBuffer_.resize(width_ * height_, 0xFFDBDFE1);
+    rebuildBackgroundCache();
     renderFrame();
     return true;
 }
