@@ -238,8 +238,8 @@ void GuiWindow::renderFrame() {
 
     Graphics g(hiResBuffer_.data(), width_, height_, 2);
 
-    // 1. Blit the pre-rendered chassis/panel background (static texture, gradients,
-    // rivets, titles) instead of re-drawing it from scratch every frame.
+    // 1. Blit the pre-rendered chassis/panel background (gradients, rivets,
+    // titles) instead of re-drawing it from scratch every frame.
     std::copy(backgroundCache_.begin(), backgroundCache_.end(), hiResBuffer_.begin());
 
     // Helper lambda to query effective normalized value per parameter ID
