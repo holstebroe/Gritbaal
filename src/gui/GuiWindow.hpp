@@ -22,7 +22,8 @@ enum class ControlType {
     Knob,
     ToggleSwitch,
     PushButton,
-    ModeSelector
+    ModeSelector,   // drag-through option list that also supports right-click mod-target assignment
+    OptionSelector  // drag-through option list for a plain multi-way parameter (no mod-target semantics)
 };
 
 struct Control {

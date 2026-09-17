@@ -75,7 +75,7 @@ struct SynthParameters {
     float noiseLevel{0.0f};
     NoiseType noiseType{NoiseType::Crackle};
 
-    FilterType filterType{FilterType::TransistorLadder};
+    VintageFilterModel filterModel{VintageFilterModel::Minimoog};
     float preFilterDrive{1.0f};  // 1.0 to 5.0
     float overdriveAmount{0.0f}; // 0.0 to 1.0 post-filter tube/diode distortion
     float warmthAmount{0.0f};    // 0.0 to 1.0 even-harmonic analog warmth

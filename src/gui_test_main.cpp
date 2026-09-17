@@ -204,5 +204,22 @@ int main() {
 
     std::cout << "Mouse drag, gesture events, MIDI CC, and refactored GUI tests passed successfully!" << std::endl;
 
+    // 5. VCF MODEL OptionSelector drag-select test (TB-303 / Minimoog / ARP2600 / MS-20)
+    // Control is at x=625, y=175, options = {MINIMOOG, ARP2600, TB-303, MS-20}
+    gui.handleMouseDown(625, 175, false);
+    gui.handleMouseDrag(625, 151, false); // Drag UP 24 pixels (2 steps of 12px)
+    gui.handleMouseUp();
+
+    double filterModelVal = 0.0;
+    plugin.paramsValue(gritbaal::PARAM_FILTER_TYPE, &filterModelVal);
+    std::cout << "Filter model after 24px UP drag on OptionSelector: " << filterModelVal << std::endl;
+    assert(filterModelVal == 2.0); // 0 (Minimoog) + 2 = 2 (TB-303)
+
+    // Right-clicking the VCF MODEL selector must NOT enter mod-target selection
+    // mode -- it is a plain option list, not a modulation target.
+    gui.handleRightClick(625, 175);
+    assert(gui.getTargetSelectingControlIndex() == -1);
+    std::cout << "VCF MODEL OptionSelector drag-select test passed successfully!" << std::endl;
+
     return 0;
 }

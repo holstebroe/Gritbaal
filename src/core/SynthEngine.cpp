@@ -89,7 +89,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     osc_.setNoiseType(params_.noiseType);
     osc_.setThermalDriftAmount(params_.thermalDrift);
 
-    filter_.setFilterType(params_.filterType);
+    filter_.setVintageModel(params_.filterModel);
     filter_.setPreDrive(params_.preFilterDrive);
 
     env1_.setAttack(params_.env1Attack);
@@ -206,7 +206,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float resNorm = effectiveTargetNorm_[static_cast<int>(ModTarget::Resonance)];
 
         float effectivePreDrive = std::clamp(params_.preFilterDrive + modPreDrive * 2.0f, 1.0f, 5.0f);
-        filter_.setFilterType(params_.filterType);
+        filter_.setVintageModel(params_.filterModel);
         filter_.setPreDrive(effectivePreDrive);
 
         float ampScale = std::clamp(1.0f + modAmp, 0.0f, 2.0f);

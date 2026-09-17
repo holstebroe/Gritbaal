@@ -92,7 +92,8 @@ void GuiWindow::initControls() {
     // 3. VCF SECTION (x: 525..745, y: 35..235)
     controls_.push_back({ PARAM_CUTOFF, "CUTOFF", ControlType::Knob, 580, 100, 20, 0.0, 1.0, 0.5, false, false, {}, 0.5 });
     controls_.push_back({ PARAM_RESONANCE, "RESONANCE", ControlType::Knob, 670, 100, 20, 0.0, 1.0, 0.5, false, false, {}, 0.5 });
-    controls_.push_back({ PARAM_FILTER_TYPE, "MS20/LADDER", ControlType::ToggleSwitch, 625, 175, 15, 0.0, 1.0, 0.0, true, false, {}, 0.0 });
+    std::vector<std::string> filterModelOpts = { "MINIMOOG", "ARP2600", "TB-303", "MS-20" };
+    controls_.push_back({ PARAM_FILTER_TYPE, "VCF MODEL", ControlType::OptionSelector, 625, 175, 0, 0.0, 3.0, 0.0, true, false, filterModelOpts, 0.0 });
 
     // 4. GLOBAL & DRIFT (x: 755..965, y: 35..235)
     controls_.push_back({ PARAM_OVERDRIVE, "TUBE DRIVE", ControlType::Knob, 810, 100, 18, 0.0, 1.0, 0.0, false, false, {}, 0.0 });
@@ -186,6 +187,10 @@ void GuiWindow::drawGritbaalTitle(Graphics& g, int x, int y) {
         if (activeCtrl.type == ControlType::ModeSelector) {
             int targetIdx = std::clamp(static_cast<int>(activeCtrl.currentVal + 0.5), 0, 18);
             snprintf(touchedBuf, sizeof(touchedBuf), "%s: %s", activeCtrl.label, kTargetFullNames[targetIdx]);
+        } else if (activeCtrl.type == ControlType::OptionSelector) {
+            int optIdx = std::clamp(static_cast<int>(activeCtrl.currentVal + 0.5), 0, static_cast<int>(activeCtrl.options.size()) - 1);
+            const char* optText = (optIdx >= 0) ? activeCtrl.options[optIdx].c_str() : "";
+            snprintf(touchedBuf, sizeof(touchedBuf), "%s: %s", activeCtrl.label, optText);
         } else {
             char valText[32];
             if (plugin_) {
@@ -286,6 +291,8 @@ void GuiWindow::renderFrame() {
             } else if (ctrl.type == ControlType::ModeSelector) {
                 bool isSelecting = (targetSelectingControlIndex_ == static_cast<int>(i));
                 controlRenderer_->drawModeSelector(g, ctrl, font_, isSelecting);
+            } else if (ctrl.type == ControlType::OptionSelector) {
+                controlRenderer_->drawModeSelector(g, ctrl, font_, false);
             } else if (ctrl.type == ControlType::ToggleSwitch) {
                 controlRenderer_->drawToggleSwitch(g, ctrl, font_);
             } else if (ctrl.type == ControlType::PushButton) {
@@ -444,7 +451,7 @@ void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
                 renderFrame();
                 break;
             }
-        } else if (ctrl.type == ControlType::ModeSelector) {
+        } else if (ctrl.type == ControlType::ModeSelector || ctrl.type == ControlType::OptionSelector) {
             if (std::abs(x - ctrl.x) <= 30 && std::abs(y - ctrl.y) <= 12) {
                 activeControlIndex_ = static_cast<int>(i);
                 dragStartY_ = y;
@@ -478,7 +485,7 @@ void GuiWindow::handleMouseDrag(int x, int y, bool isShift) {
     if (activeControlIndex_ < 0 || activeControlIndex_ >= static_cast<int>(controls_.size())) return;
 
     auto& ctrl = controls_[activeControlIndex_];
-    if (ctrl.type == ControlType::ModeSelector) {
+    if (ctrl.type == ControlType::ModeSelector || ctrl.type == ControlType::OptionSelector) {
         int deltaY = dragStartY_ - y;
         int stepChange = deltaY / 12;
         int numOpts = static_cast<int>(ctrl.options.size());

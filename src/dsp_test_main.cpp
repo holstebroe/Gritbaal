@@ -149,7 +149,7 @@ static void testPhase2ExtendedDsp() {
     params.lfo1Depth = 0.3f;
     params.lfo2Rate = 3.0f;
     params.lfo2Depth = 0.2f;
-    params.filterType = gritbaal::FilterType::SallenKey; // MS-20 style
+    params.filterModel = gritbaal::VintageFilterModel::MS20;
     params.preFilterDrive = 2.5f;
     params.overdriveAmount = 0.5f;
     params.powerSagAmount = 0.4f;
@@ -173,11 +173,57 @@ static void testPhase2ExtendedDsp() {
     assert(maxAbs > 0.01f);
 }
 
+static void testAllVintageFilterModels() {
+    std::cout << "\n--- Testing all VintageFilterModel presets ---" << std::endl;
+
+    const gritbaal::VintageFilterModel models[] = {
+        gritbaal::VintageFilterModel::Minimoog,
+        gritbaal::VintageFilterModel::Arp2600,
+        gritbaal::VintageFilterModel::TB303,
+        gritbaal::VintageFilterModel::MS20,
+    };
+    const char* names[] = { "Minimoog", "ARP2600", "TB303", "MS20" };
+
+    for (int m = 0; m < 4; ++m) {
+        gritbaal::SynthEngine engine;
+        engine.setSampleRate(44100.0);
+
+        auto& params = engine.getParams();
+        params.cutoff = 0.5f;
+        params.resonance = 0.95f; // push near self-oscillation to stress the solver
+        params.filterModel = models[m];
+        params.waveform = gritbaal::Waveform::Saw;
+        params.masterVolume = 0.8f;
+
+        engine.noteOn(36, 1.0f);
+
+        std::vector<float> left(2048);
+        std::vector<float> right(2048);
+        engine.processAudio(left.data(), right.data(), 2048);
+
+        float maxAbs = 0.0f;
+        for (float sample : left) {
+            assert(!std::isnan(sample) && !std::isinf(sample));
+            maxAbs = std::max(maxAbs, std::abs(sample));
+        }
+
+        if (maxAbs > 1.5f) {
+            std::cerr << "ERROR: " << names[m] << " filter model output exploded! Max abs: " << maxAbs << "\n";
+            exit(1);
+        }
+
+        std::cout << "  " << names[m] << " OK, peak output: " << maxAbs << std::endl;
+    }
+
+    std::cout << "All VintageFilterModel presets stable." << std::endl;
+}
+
 int main() {
     float accurateMax = runDspTest("test_gritbaal_accurate.wav");
     std::cout << "Core DSP test completed. Max peak amplitude: " << accurateMax << "\n";
 
     testPhase2ExtendedDsp();
+    testAllVintageFilterModels();
 
     std::cout << "All Phase 2 DSP tests completed successfully.\n";
     return 0;

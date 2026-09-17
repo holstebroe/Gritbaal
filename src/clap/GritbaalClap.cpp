@@ -170,7 +170,7 @@ GritbaalClap::GritbaalClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_OVERDRIVE] = 0.0;
     paramValues_[PARAM_WARMTH] = 0.0;
 
-    paramValues_[PARAM_FILTER_TYPE] = 0.0; // 0 = Transistor Ladder, 1 = Diode Sallen Key
+    paramValues_[PARAM_FILTER_TYPE] = 0.0; // 0=Minimoog, 1=ARP2600, 2=TB-303, 3=MS-20
     paramValues_[PARAM_THERMAL_DRIFT] = 0.1;
     paramValues_[PARAM_POWER_SAG] = 0.1;
 
@@ -260,7 +260,8 @@ void GritbaalClap::syncParamsToEngine() {
     params.overdriveAmount = static_cast<float>(paramValues_[PARAM_OVERDRIVE]);
     params.warmthAmount = static_cast<float>(paramValues_[PARAM_WARMTH]);
 
-    params.filterType = (paramValues_[PARAM_FILTER_TYPE] >= 0.5) ? FilterType::SallenKey : FilterType::TransistorLadder;
+    params.filterModel = static_cast<VintageFilterModel>(
+        std::clamp(static_cast<int>(paramValues_[PARAM_FILTER_TYPE] + 0.5), 0, kNumVintageFilterModels - 1));
     params.thermalDrift = static_cast<float>(paramValues_[PARAM_THERMAL_DRIFT]);
     params.powerSagAmount = static_cast<float>(paramValues_[PARAM_POWER_SAG]);
 }
@@ -429,7 +430,7 @@ static const ParamDef kParamDefs[PARAM_COUNT] = {
     /* PARAM_OVERDRIVE     */ { "Tube Overdrive",  "Drive",     0.0, 1.0,  0.0,  false },
     /* PARAM_WARMTH        */ { "Analog Warmth",   "Output",    0.0, 1.0,  0.0,  false },
 
-    /* PARAM_FILTER_TYPE   */ { "Filter Type",     "Filter",    0.0, 1.0,  0.0,  true  },
+    /* PARAM_FILTER_TYPE   */ { "Filter Model",    "Filter",    0.0, 3.0,  0.0,  true  },
     /* PARAM_THERMAL_DRIFT */ { "Thermal Drift",   "Global",    0.0, 1.0,  0.1,  false },
     /* PARAM_POWER_SAG     */ { "Power Sag",       "Global",    0.0, 1.0,  0.1,  false },
 };
@@ -546,6 +547,9 @@ static const char* kTargetNames[] = {
     "V1VOL", "V2VOL", "SUBVOL", "RINGMOD", "NOISE", "PREDRV", "TUBEDRV",
     "AMP", "LFO1R", "LFO1A", "LFO2R", "LFO2A"
 };
+static const char* kFilterModelNames[] = {
+    "Minimoog", "ARP 2600", "TB-303", "MS-20"
+};
 
 bool GritbaalClap::paramsValueToText(clap_id paramId, double value, char* outBuffer, uint32_t outBufferCapacity) {
     if (paramId >= PARAM_COUNT || !outBuffer || outBufferCapacity == 0) return false;
@@ -603,7 +607,8 @@ bool GritbaalClap::paramsValueToText(clap_id paramId, double value, char* outBuf
     } else if (paramId == PARAM_WAVEFORM || paramId == PARAM_VCO1_WAVE || paramId == PARAM_VCO2_WAVE) {
         snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Square" : "Saw");
     } else if (paramId == PARAM_FILTER_TYPE) {
-        snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Sallen-Key" : "Ladder");
+        int idx = std::clamp(static_cast<int>(value + 0.5), 0, kNumVintageFilterModels - 1);
+        snprintf(outBuffer, outBufferCapacity, "%s", kFilterModelNames[idx]);
     } else {
         snprintf(outBuffer, outBufferCapacity, "%.2f", value);
     }
