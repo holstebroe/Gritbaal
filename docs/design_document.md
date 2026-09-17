@@ -131,8 +131,12 @@ Gritbaal features a selectable dual-filter architecture designed for maximum gri
 ### 5.2 Topology 2: Diode Ring / Sallen-Key Filter (Korg MS-20 Style)
 * **Topology:** 2-pole 12dB/octave Sallen-Key diode bridge filter (Compendium Section 31).
 * **Gritty Diode Clipping:** Diode limiter non-linearities in the feedback path producing the iconic MS-20 aggressive, screaming self-oscillation and raw harmonic bite.
+* **Current status:** the Sallen-Key path is implemented and runs inside the same 4x oversampling loop as the ladder, but its feedback nonlinearity is still a symmetric `tanh`, not yet the asymmetric diode curve the real K35/MS-20 circuit has. Tracked in [filter-architecture-plan.md](filter-architecture-plan.md).
 
-### 5.3 Overdrive & Power Supply Sag Modeling
+### 5.3 Toward Multiple Vintage Targets
+`FilterType` today only distinguishes `TransistorLadder` and `SallenKey`, both used generically — there is no per-synth identity yet (e.g. a TB-303-flavored mismatched-capacitor ladder vs. a matched-capacitor Minimoog/ARP 2600 ladder). The plan for exposing distinct TB-303 / Minimoog / ARP 2600 (4012 & 4072) / MS-20 / Jupiter-8 / CS-80 character presets — grounded in each instrument's actual circuit per the compendium — lives in [filter-architecture-plan.md](filter-architecture-plan.md).
+
+### 5.4 Overdrive & Power Supply Sag Modeling
 * **Pre-Filter Drive:** Variable input gain stage pushing the filter into heavy harmonic saturation before filtering.
 * **Post-Filter Tube/Diode Waveshaper:** Asymmetric waveshaper ($y = \tanh(x + 0.15 x^2)$) introducing even-harmonic tube warmth and heavy overdrive.
 * **Power Supply Rail Sag:** Dynamic reduction of internal supply headroom under heavy bass transients, modulating high-frequency gain and creating dynamic compression (Compendium Section 10).

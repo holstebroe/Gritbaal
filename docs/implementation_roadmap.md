@@ -36,8 +36,10 @@ This document outlines the step-by-step implementation strategy, technical const
 - [ ] **Dual PolyBLEP VCOs:** Implement PolyBLEP anti-aliased saw, triangle, and pulse wave generation with variable pulse width (`src/core/Oscillator.cpp`).
 - [ ] **Sync & FM:** Add hard synchronization of VCO2 to VCO1 and exponential cross-frequency modulation (FM).
 - [ ] **Thermal Drift & Voice Allocation:** Add per-voice thermal pitch walk (1/f noise process) and initial component mismatch tolerances.
-- [ ] **Dual Filter Topology (VCF):** Implement non-linear ZDF 4-pole transistor ladder filter and Sallen-Key diode filter options with pre-filter drive (`src/core/Filter.cpp`).
-- [ ] **Overdrive & Power Sag:** Add post-filter tube/diode asymmetric saturation and dynamic power rail sag under heavy bass transients (`src/core/SynthEngine.cpp`).
+- [x] **Dual Filter Topology (VCF):** Non-linear ZDF 4-pole transistor ladder filter and Sallen-Key diode filter, both running inside a real 16-tap polyphase FIR 4x-oversampling loop with Newton-Raphson feedback solves and a Nyquist-aware cutoff clamp, with pre-filter drive (`src/core/Filter.cpp`).
+- [x] **Overdrive & Power Sag:** Post-filter tube/diode asymmetric saturation and dynamic power rail sag under heavy bass transients (`src/core/SynthEngine.cpp`).
+- [ ] **Oversample the post-filter waveshapers:** `warmthAmount`/`overdriveAmount` in `SynthEngine.cpp` currently run at the base sample rate after the filter's internal downsampling — route them through the filter's existing 4x FIR buffers instead. See [filter-architecture-plan.md](filter-architecture-plan.md) §1/§4.
+- [ ] **Per-synth VCF character presets:** Extend `FilterType`/`Filter.hpp` so per-stage capacitor mismatch, resonance-gain constants, and (eventually) saturator family are selected per target synth (TB-303, Minimoog, ARP 2600 4012/4072, MS-20, Jupiter-8, CS-80) instead of one hard-coded mismatch pattern shared by every `TransistorLadder` use. Plan and rationale: [filter-architecture-plan.md](filter-architecture-plan.md).
 
 ### Phase 3: Procedural UI Engine & Knobs Layering
 - [ ] **Layer Pre-Renderer:** Implement offscreen image buffer layer caching in `src/gui/` for pre-rendering knobs, dial indicators, shadows, and panel backgrounds.

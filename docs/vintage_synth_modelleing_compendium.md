@@ -957,6 +957,8 @@ float newton(float initial, F&& f, DF&& df)
 
 Use the previous sample as the initial guess for good convergence.
 
+**Biquad vs. pole count vs. ZDF/WDF:** "biquad" names an *implementation structure* (a 2-pole/2-zero direct-form difference equation), not a synonym for 2-pole filtering — biquads are cascaded to reach higher order. Biquads are a poor fit for resonant analog-modeled filters because they have no natural way to represent a saturating feedback path; that is why this section uses ZDF/TPT (trapezoidal-integrated one-pole stages, unconditionally stable) or direct ODE integration (e.g. RK2) instead of a cascaded-biquad design.
+
 ---
 
 # 21. Newton vs Fixed-Point Iteration
@@ -1779,6 +1781,8 @@ ideal 24 dB low-pass + resonance
 
 for the original topology.
 
+The TB-303 is physically a 4-pole/24dB ladder, not a genuine 3-pole design — but one of its four stage capacitors is deliberately a different value from the other three (roughly half), which pulls the measured transfer function away from a clean 24dB/oct slope toward something that behaves closer to an 18dB filter. This is confirmed by Tim Stinchcombe's published transfer-function analysis of the TB-303 VCF, not merely an inference from the schematic. The practical modeling consequence: a relabeled *symmetric*, matched-capacitor 4-pole BJT ladder (e.g. a Minimoog-style ladder with a "TB-303" name on it) will not reproduce the "broken 24dB" character regardless of how its resonance/drive constants are tuned — the mismatch itself, not the pole count, is the character. A TB-303 model should expose per-stage capacitor scale as an explicit, named calibration parameter (see Section 42) rather than hard-coding one fixed mismatch ratio shared with other ladder-based synths.
+
 ## 30.4 Accent
 
 Accent changes multiple control paths simultaneously and is not simply velocity gain.
@@ -1992,6 +1996,7 @@ Model the **device family** once, then instantiate the surrounding circuit diffe
 | Oberheim SEM | analogue VCOs | state variable | smooth multimode response, nonlinear OTA stages |
 | Jupiter-6 | CEM3340 / IR3109 family depending block | configurable IR3109 topology | multimode state-variable arrangements |
 | ARP Odyssey | analogue VCOs | revision-dependent filters | strong revision-dependent filter character |
+| ARP 2600 | analogue VCOs, patchable | 4012 (Moog-derived ladder) or 4072 (ARP redesign) | revision-dependent ladder; 4072 has a materially lower practical cutoff ceiling than 4012 |
 
 ---
 
@@ -3306,6 +3311,18 @@ chorus/BBD
 voice-level mismatch
 ```
 
+## ARP 2600
+
+Highest priority:
+
+```text
+4012 vs 4072 VCF identity (selectable, not a shared curve)
+ladder tanh nonlinearity
+4072 cutoff-ceiling compression
+patch-matrix flexibility (VCF/VCA/envelopes independently patchable)
+monophonic per-voice accuracy budget
+```
+
 ---
 
 # 74. Final Design Rules
@@ -3339,6 +3356,8 @@ voice-level mismatch
 - Yamaha, *CS-80 Service Manual / Servicing Guide* — custom ICs, voice-card architecture and calibration.
 - Yamaha CS-80 owner documentation — filter envelope, touch response and voice architecture.
 - Roland, *Juno-60 Service Notes* — DCO, VCF/VCA, chorus and service/calibration information.
+- Tim Stinchcombe, published transfer-function analysis of the Roland TB-303 VCF — source for the 4-pole-with-mismatched-capacitor characterization in Section 30.3.
+- ARP 2600 technical/circuit histories covering the 4012 (Moog-derived) and 4072 (ARP redesign, post patent-dispute) VCF boards — source for Section 77.
 
 ## Device references
 
@@ -3373,6 +3392,9 @@ voice-level mismatch
 | Jupiter-8 IR3109 12/24 dB architecture | A/B | service/topology analysis |
 | Juno-60 IR3109/BA662 relationship | B | schematic/teardown analysis |
 | Juno-60 chorus exact rate labels | B/C | service notes and independent reverse engineering can disagree |
+| TB-303 mismatched-capacitor ladder (4-pole, not 3-pole) | A/B | confirmed by Stinchcombe's independent transfer-function analysis |
+| ARP 2600 4012 vs 4072 VCF distinction and patent-dispute origin | B | well-documented technical/historical circuit analysis, not a directly sourced ARP service manual in this document |
+| ARP 2600 4072 practical cutoff ceiling (~7-12 kHz) | B/C | repeatedly cited in independent comparisons; treat as a calibration target pending SPICE/service-manual cross-check |
 | Exact component drift of an arbitrary vintage unit | C | requires unit-specific measurement |
 | Exact dielectric absorption of every original capacitor | C | requires component-specific data |
 
@@ -3380,7 +3402,48 @@ When implementing an unmeasured characteristic, expose it as a calibration param
 
 ---
 
-# 77. Summary: The Reference Model Philosophy
+# 77. ARP 2600 Reference
+
+## 77.1 Why the ARP 2600 needs its own model
+
+The ARP 2600 is semi-modular: three VCOs, a VCF, a VCA, ADSR/AR envelopes, a ring modulator, sample-and-hold, a spring reverb and a patch-panel, normalized into a default signal path but fully repatchable. It is also strictly monophonic, so — unlike Jupiter-8, Juno-60 or CS-80 — the per-voice CPU budget is not a polyphony-driven constraint, and the highest-accuracy solver tier is affordable in real time.
+
+## 77.2 Filter revisions: 4012 vs 4072
+
+Two materially different VCF boards were used across ARP 2600 production:
+
+- **"4012" board:** an early design, essentially a licensed/derived version of the Moog transistor-ladder topology, predating ARP's own patent workaround. 4-pole/24dB. Widely regarded as the more musical of the two, and shares the same tanh-derived differential-pair character as the Minimoog ladder.
+- **"4072" board:** ARP's own redesign, forced by Moog's ladder-filter patent dispute with ARP. Still nominally 4-pole/24dB, but built around a different circuit rather than a licensed Moog ladder, with a materially lower practical cutoff ceiling — usable resonant sweeps top out around **~7–12 kHz** rather than opening up to a bright ~18–20 kHz the way the 4012 or a Minimoog ladder does. It sounds duller/darker at the same nominal cutoff-knob position.
+
+This is the same pattern as Prophet-5 Rev1/2 vs Rev3: "ARP 2600 filter" is not one circuit, and a model must expose 4012 vs 4072 as a selectable instrument identity rather than one shared curve with a brightness trim.
+
+## 77.3 Modeling implications
+
+- Both revisions are BJT differential-pair ladders, so `tanh` is the physically correct nonlinearity for both (same reasoning as Minimoog/Jupiter-8) — the audible 4012-vs-4072 difference is in bias/gain-staging and pole placement, not in swapping the saturator family.
+- The 4072's lower ceiling should come from a genuine topology-driven frequency-range limitation (lower max control current, different pole scaling), not from a static "duller" low-pass trim bolted onto a shared 4012 model — the real darkening/compression changes with resonance and drive, not only with the cutoff knob.
+- Because the instrument is monophonic, `TanhSaturator` + a higher-iteration Newton solver (or a WDF ladder) is affordable even for a real-time voice — there is no polyphony tax the way there is for Jupiter-8/CS-80.
+
+## 77.4 Signal path
+
+The voice-relevant signal path, using the default/normalized (pre-patched) routing:
+
+```text
+VCO1/2/3 --> Mixer --> VCF (4012 or 4072 ladder) --> VCA --> Output
+                 ^                 ^
+      Ring Mod, S&H     ADSR / AR envelopes, LFO
+```
+
+Unlike a fixed-architecture instrument (Minimoog, Jupiter-8), the 2600's patch matrix means this is a default normalization, not a hardwired circuit. An emulation should keep the VCF/VCA/envelope blocks independently patchable rather than assuming the default routing is the only one.
+
+## 77.5 Confidence
+
+- 4-pole/24dB spec for both 4012 and 4072: **A** (widely published spec).
+- 4012 as a Moog-derived ladder, and the 4072 redesign forced by the patent dispute: **B** (well-documented technical/historical circuit analysis, not a directly quoted ARP service manual in this document).
+- 4072's ~7–12 kHz practical ceiling: **B/C** — repeatedly cited in independent technical comparisons; treat the exact numeric range as a calibration target, not a hardware-verified constant, until cross-checked against a service manual or SPICE reconstruction.
+
+---
+
+# 78. Summary: The Reference Model Philosophy
 
 The objective is **not** to produce a synthesizer that has random imperfections.
 
